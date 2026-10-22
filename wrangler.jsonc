@@ -1,9 +1,9 @@
 {
   "name": "allin1-cotizador",
   "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
   "assets": {
-    "directory": "./_site",
-    "html_handling": "none",
-    "not_found_handling": "none"
+    "directory": "./_site"
   }
 }
