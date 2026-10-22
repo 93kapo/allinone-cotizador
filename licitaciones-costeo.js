@@ -3,7 +3,7 @@
 import { h, clear, usd, num, pct1, add } from './util.js';
 import { t, getLang } from './i18n.js';
 import * as store from './store.js';
-import { field, numField, selectField, sheet, aviso, pctField } from './ui.js';
+import { field, numField, selectField, sheet, aviso, pctField, acciones, borrarConDeshacer, controlGanancia } from './ui.js';
 import { aCentavos, costearLinea } from './engine.js';
 import { calcularBid, lineaLibre, lineaAMotor } from './bids-calc.js';
 import { analizarAlcance, OFICIOS, nombreOficio } from './bids-fit.js';
@@ -38,9 +38,9 @@ export function pasoCostos({ body, bid, guardar, guardarYa }) {
         ls.length ? ls.map((l) => h('div', { class: 'item' },
           h('div', { class: 'main' }, h('b', {}, nombreLinea(l)),
             h('span', { class: 'sub' }, [`${num(l.cantidad, 1)} ${l.unidad || ''}`, bid.breakouts.find((b) => b.id === l.breakoutId)?.nombre || (bid.breakouts.length ? t('bid.unassigned') : ''), l.nota].filter(Boolean).join(' · '))),
-          h('div', { class: 'right' }, h('b', {}, usd(precioDe(l))), h('br'),
-            h('button', { class: 'small ghost', onclick: () => formLinea(l, key) }, t('ui.edit')), ' ',
-            h('button', { class: 'small danger', 'aria-label': t('ui.delete'), onclick: () => { bid.lineas.splice(bid.lineas.indexOf(l), 1); guardar(); pintarTodo(); } }, '✕'))))
+          h('div', { class: 'right' }, h('b', {}, usd(precioDe(l))),
+            acciones(h('button', { class: 'ghost', onclick: () => formLinea(l, key) }, t('ui.edit')),
+              h('button', { class: 'danger', 'aria-label': t('ui.delete'), onclick: () => borrarConDeshacer(bid.lineas, l, { msg: t('ui.deletedLine'), guardar, despues: pintarTodo }) }, '✕')))))
           : h('p', { class: 'muted' }, t('bid.noLines')),
         h('button', { class: 'block', onclick: () => formLinea(null, key) }, '+ ' + t('lines.add'))));
     }
@@ -101,20 +101,25 @@ export function pasoCostos({ body, bid, guardar, guardarYa }) {
     add(breakBox, h('div', { class: 'card stack' }, h('h2', {}, t('bid.breakouts')), h('p', { class: 'muted' }, t('bid.breakoutsHint')),
       bid.breakouts.map((b) => h('div', { class: 'row', style: 'align-items:end' },
         field({ label: t('bid.breakout'), value: b.nombre, onInput: (v) => { b.nombre = v.trim(); guardar(); pintarResumen(); pintarLineas(); } }),
-        h('button', { class: 'small danger', 'aria-label': t('ui.delete'), style: 'flex:0 0 auto', onclick: () => {
-          bid.breakouts = bid.breakouts.filter((x) => x !== b); for (const l of bid.lineas) if (l.breakoutId === b.id) l.breakoutId = null;
-          guardar(); pintarTodo();
+        h('button', { class: 'danger', 'aria-label': t('ui.delete'), style: 'flex:0 0 auto', onclick: () => {
+          const afectadas = bid.lineas.filter((l) => l.breakoutId === b.id);
+          afectadas.forEach((l) => { l.breakoutId = null; });
+          borrarConDeshacer(bid.breakouts, b, { msg: t('ui.deletedBreakout'), guardar: () => { afectadas.forEach((l) => { l.breakoutId = bid.breakouts.includes(b) ? b.id : null; }); guardar(); }, despues: pintarTodo });
         } }, '✕'))),
       h('button', { class: 'block', onclick: () => { bid.breakouts.push({ id: store.nuevoId(), nombre: `${t('bid.breakout')} ${bid.breakouts.length + 1}` }); guardar(); pintarTodo(); } }, '+ ' + t('bid.addBreakout')),
       res && res.sinAsignar ? aviso('warn', t('bid.unassignedWarn', res.sinAsignar)) : null));
   }
 
   // ----- Resumen -----
+  const ctl = controlGanancia({ id: 'bmg', bp: bid.margenBp, pisoBp: bid.snapshot.ajustes.margenPisoBp, onChange: (bp) => { bid.margenBp = bp; guardar(); pintarResumen(); } });
   function pintarResumen() {
+    const foco = document.activeElement?.id; // el control de ganancia se vuelve a insertar: conserva el foco
     clear(resumenBox);
+    setTimeout(() => { if (foco && document.activeElement?.id !== foco) document.getElementById(foco)?.focus(); }, 0);
     const res = cal();
     if (!res) { add(resumenBox, aviso('err', t('ui.error'))); return; }
     const sem = res.semaforo;
+    ctl.setReal(res.margenBp);
     const semTxt = t('bidsem.' + sem, pct1(res.pisoBp));
     const fila = (k, v, cls) => h('tr', { class: cls }, h('td', {}, k), h('td', { class: 'r' }, v));
     add(resumenBox,
@@ -126,10 +131,7 @@ export function pasoCostos({ body, bid, guardar, guardarYa }) {
           h('div', { class: 'kpi sem-' + sem }, h('small', {}, t('rev.marginReal')), h('b', {}, `${pct1(res.margenBp)} (${t('rev.markup')} ${res.markupPct.toFixed(1)}%)`))),
         h('div', { class: 'banner mt ' + (sem === 'verde' ? 'ok' : sem === 'ambar' ? 'warn' : 'err'), role: 'status' }, h('b', {}, (sem === 'verde' ? '● ' : sem === 'ambar' ? '▲ ' : '■ ')), semTxt),
         res.errores.length ? aviso('err', t('bid.lineErrors', res.errores.length)) : null,
-        h('div', {}, h('label', { for: 'bmg' }, `${t('rev.margin')}: ${pct1(bid.margenBp)}`),
-          h('input', { id: 'bmg', type: 'range', min: '0', max: '7000', step: '50', value: bid.margenBp,
-            oninput: (e) => { bid.margenBp = parseInt(e.target.value); e.target.previousSibling.textContent = `${t('rev.margin')}: ${pct1(bid.margenBp)}`; guardar(); },
-            onchange: () => pintarResumen() })),
+        ctl.el,
         pctField(t('rev.contingency'), bid.contingenciaBp, (v) => { bid.contingenciaBp = v; guardar(); pintarResumen(); pintarLineas(); }, t('rev.contingencyHint')),
         h('p', { class: 'muted' }, t('rev.marginNote'))),
       h('div', { class: 'card' }, h('h2', {}, t(res.hayDesglose ? 'bid.priceBreakdown' : 'bid.totalPrice')),

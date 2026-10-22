@@ -3,11 +3,11 @@ import { h, descargar, clear } from './util.js';
 import { t, setLang } from './i18n.js';
 import { S } from './state.js';
 import * as store from './store.js';
-import { field, pctField, selectField, toast, aviso } from './ui.js';
+import { field, pctField, selectField, toast, aviso, guardadoOk } from './ui.js';
 
 export async function pantallaAjustes({ shell }) {
   const a = S.ajustes;
-  const guardar = async () => { try { await store.saveAjustes(a); toast(t('ui.saved')); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
+  const guardar = async () => { try { await store.saveAjustes(a); guardadoOk(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
   const P = (label, key, hint) => pctField(label, a[key], (v) => { a[key] = v; guardar(); }, hint);
   const E = (label, key, type = 'text') => field({ label, type, value: a.empresa[key] || '', onInput: (v) => { a.empresa[key] = v.trim(); guardar(); } });
   const T = (label, obj, lang) => field({ label, area: true, value: obj[lang], onInput: (v) => { obj[lang] = v; guardar(); } });

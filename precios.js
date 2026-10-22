@@ -3,16 +3,16 @@ import { h } from './util.js';
 import { t } from './i18n.js';
 import { S } from './state.js';
 import * as store from './store.js';
-import { field, moneyField, numField, pctField, toast, aviso } from './ui.js';
+import { field, moneyField, numField, pctField, toast, aviso, guardadoOk } from './ui.js';
 import { catalogoInicial } from './defaults.js';
 import { nuevoId } from './store.js';
 
 export async function pantallaPrecios({ shell }) {
   const c = S.catalogo;
-  const guardar = async () => { try { await store.saveCatalogo(c); toast(t('ui.saved')); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
+  const guardar = async () => { try { await store.saveCatalogo(c); guardadoOk(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
   const est = (o) => h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: o.estimado || null, onchange: (e) => { o.estimado = e.target.checked; guardar(); } }), t('price.estimated'));
   const fuente = (o) => field({ label: t('price.source'), value: o.fuente || '', onInput: (v) => { o.fuente = v; guardar(); } });
-  const sec = (titulo, lista, render, nuevo) => h('details', { class: 'card', open: true }, h('summary', { style: 'font-weight:600;min-height:44px;display:flex;align-items:center' }, titulo),
+  const sec = (titulo, lista, render, nuevo) => h('details', { class: 'card', open: true }, h('summary', { style: 'font-weight:600;min-height:48px;display:flex;align-items:center;font-size:1.05rem' }, titulo),
     ...lista.map((o) => h('div', { class: 'card stack', style: 'background:#F3F8F9' }, render(o))),
     nuevo ? h('button', { class: 'block', onclick: () => { nuevo(); guardar().then(() => location.reload()); } }, '+ ' + t('price.add')) : null);
 

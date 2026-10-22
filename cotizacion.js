@@ -3,7 +3,7 @@ import { h, clear, usd, num, pct1, descargar, add } from './util.js';
 import { t } from './i18n.js';
 import { S } from './state.js';
 import * as store from './store.js';
-import { field, numField, selectField, checkField, toast, sheet, aviso, pctField } from './ui.js';
+import { field, numField, selectField, checkField, toast, sheet, aviso, pctField, guardadoOk, acciones, borrarConDeshacer, controlGanancia } from './ui.js';
 import {
   medirCuarto, calcularCotizacion, contingenciaPorDefecto, esPre1978, puedeGenerarPdf, TEXTO_CONFIRMACION,
   markupPctDesdeMargenBp, montosHitos, anticipoExcede10, snapshotCatalogo, aCentavos, BP,
@@ -17,7 +17,7 @@ export async function pantallaCotizacion({ shell, id, paso }) {
   if (!q) return shell(t('ui.error'), aviso('err', t('quote.notFound')), '#/');
   const paso0 = PASOS.includes(paso) ? paso : 'client';
   let timer;
-  const guardarYa = async () => { clearTimeout(timer); try { await store.saveCotizacion(q); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
+  const guardarYa = async () => { clearTimeout(timer); try { await store.saveCotizacion(q); guardadoOk(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
   const guardar = () => { clearTimeout(timer); timer = setTimeout(guardarYa, 350); };
   const body = h('div');
   const cal = () => { try { return calcularCotizacion(q); } catch (e) { console.error(e); return null; } };
@@ -77,8 +77,8 @@ export async function pantallaCotizacion({ shell, id, paso }) {
           h('div', { class: 'row' }, N(t('rooms.doors'), 'puertas', '1'), N(t('rooms.windows'), 'ventanas', '1')),
           out,
           h('div', { class: 'row' },
-            h('button', { class: 'small', onclick: () => agregarPinturaCuarto(r) }, t('rooms.paintThis')),
-            h('button', { class: 'small danger', onclick: () => { if (confirm(t('rooms.deleteConfirm'))) { q.cuartos = q.cuartos.filter((x) => x !== r); guardar(); pintarCuartos(); } } }, t('ui.delete')))));
+            h('button', { onclick: () => agregarPinturaCuarto(r) }, t('rooms.paintThis')),
+            h('button', { class: 'danger', onclick: () => borrarConDeshacer(q.cuartos, r, { msg: t('ui.deletedRoom'), guardar, despues: pintarCuartos }) }, t('ui.delete')))));
       });
     };
     function agregarPinturaCuarto(r) {
@@ -97,9 +97,9 @@ export async function pantallaCotizacion({ shell, id, paso }) {
         ll.append(h('div', { class: 'item' },
           h('div', { class: 'main' }, h('b', {}, l.personalizada ? l.personalizada.nombre : (p?.nombre || l.partidaId)),
             h('span', { class: 'sub' }, [l.personalizada ? '' : `${num(l.cantidad, 1)} ${l.unidad || ''}`, room, l.opciones?.oscuro ? t('lines.dark') : '', l.nota || ''].filter(Boolean).join(' · '))),
-          h('div', { class: 'right' }, h('b', {}, c ? usd(c.lineas[i]?.totales.directo) : ''), h('br'),
-            h('button', { class: 'small ghost', onclick: () => formLinea(l) }, t('ui.edit')), ' ',
-            h('button', { class: 'small danger', 'aria-label': t('ui.delete'), onclick: () => { q.lineas.splice(i, 1); guardar(); pintarLineas(); } }, '✕'))));
+          h('div', { class: 'right' }, h('b', {}, c ? usd(c.lineas[i]?.totales.directo) : ''),
+            acciones(h('button', { class: 'ghost', onclick: () => formLinea(l) }, t('ui.edit')),
+              h('button', { class: 'danger', 'aria-label': t('ui.delete'), onclick: () => borrarConDeshacer(q.lineas, l, { msg: t('ui.deletedLine'), guardar, despues: pintarLineas }) }, '✕')))));
       });
     };
     pintarCuartos(); pintarLineas();
@@ -170,13 +170,12 @@ export async function pantallaCotizacion({ shell, id, paso }) {
   // ---------- Paso 3: revisión de costos ----------
   function pasoRevision() {
     const out = h('div');
-    const lab = h('label', { for: 'mg' }, `${t('rev.margin')}: ${pct1(q.margenBp)}`);
-    const rng = h('input', { id: 'mg', type: 'range', min: '0', max: '7000', step: '50', value: q.margenBp,
-      oninput: (e) => { q.margenBp = parseInt(e.target.value); lab.textContent = `${t('rev.margin')}: ${pct1(q.margenBp)}`; rng.setAttribute('aria-valuetext', pct1(q.margenBp)); guardar(); pintar(); } });
+    const ctl = controlGanancia({ id: 'mg', bp: q.margenBp, pisoBp: q.snapshot.ajustes.margenPisoBp, onChange: (bp) => { q.margenBp = bp; guardar(); pintar(); } });
     const pintar = () => {
       clear(out);
       const c = cal(); if (!c) { add(out, aviso('err', t('ui.error'))); return; }
       const T = c.totales, aj = q.snapshot.ajustes;
+      ctl.setReal(T.margenBp);
       const bajo = T.margenBp < aj.margenPisoBp;
       const fila = (k, v, cls) => h('tr', { class: cls }, h('td', {}, k), h('td', { class: 'r' }, v));
       add(out, 
@@ -215,7 +214,7 @@ export async function pantallaCotizacion({ shell, id, paso }) {
         anticipoExcede10(q.hitosBp[0]) ? aviso('warn', t('rev.deposit10')) : null);
     };
     pintar();
-    add(body, h('div', { class: 'card' }, lab, rng, h('p', { class: 'muted' }, t('rev.marginNote'))), out, h('button', { class: 'primary block', onclick: () => guardarYa().then(() => { location.hash = `#/cot/${id}/pdf`; }) }, t('ui.next')));
+    add(body, h('div', { class: 'card' }, ctl.el, h('p', { class: 'muted' }, t('rev.marginNote'))), out, h('button', { class: 'primary block', onclick: () => guardarYa().then(() => { location.hash = `#/cot/${id}/pdf`; }) }, t('ui.next')));
   }
 
   // ---------- Paso 4: PDF ----------
@@ -273,7 +272,7 @@ export async function pantallaCotizacion({ shell, id, paso }) {
   const calc3 = (c) => c.totales.precio;
 
   shell(q.cliente.nombre || q.numero, h('div', {},
-    h('div', { class: 'row', style: 'margin-bottom:8px' }, h('a', { href: '#/', class: 'btn small ghost' }, '← ' + t('nav.home')),
-      h('a', { href: `#/planos/${id}`, class: 'btn small' }, t('quote.openPlans'))), body), '#/');
+    h('div', { class: 'row', style: 'margin-bottom:8px' }, h('a', { href: '#/', class: 'btn ghost' }, '← ' + t('nav.home')),
+      h('a', { href: `#/planos/${id}`, class: 'btn' }, t('quote.openPlans'))), body), '#/');
   render();
 }

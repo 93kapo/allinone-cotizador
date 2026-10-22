@@ -5,7 +5,7 @@ import { h, clear, add, num, cargarScript, PDFJS_URL, PDFJS_WORKER, usd } from '
 import { t } from './i18n.js';
 import { S } from './state.js';
 import * as store from './store.js';
-import { field, selectField, toast, sheet, aviso } from './ui.js';
+import { field, selectField, toast, sheet, aviso, guardadoOk, acciones, borrarConDeshacer } from './ui.js';
 import { parseLongitud, calibrarEscala, longitudPolilinea, areaPoligono, dist, formatoPiesPulgadas } from './engine.js';
 
 let pdfjs;
@@ -28,7 +28,7 @@ export async function pantallaPlanos({ shell, id }) {
   const q = await store.getCotizacion(id);
   if (!q) return shell(t('ui.error'), aviso('err', t('quote.notFound')), '#/planos');
   q.planos = q.planos || []; q.medidas = q.medidas || [];
-  const guardar = () => store.saveCotizacion(q).catch((e) => toast(t('ui.error') + ': ' + e.message, 'err'));
+  const guardar = () => store.saveCotizacion(q).then(() => guardadoOk()).catch((e) => toast(t('ui.error') + ': ' + e.message, 'err'));
 
   let plano = q.planos[0] || null, pdfDoc = null, pagina = 1, zoom = 1, modo = null, pts = [], viewport1 = null, realce = null, renderTask = null;
   const cv = h('canvas'), ov = h('canvas', { class: 'draw', 'aria-label': t('plans.canvasLabel') });
@@ -83,7 +83,7 @@ export async function pantallaPlanos({ shell, id }) {
     for (const m of q.medidas.filter((x) => x.planoId === plano?.id && x.pagina === pagina)) {
       const sel = realce === m.id;
       trazo(m.pts, m.tipo === 'area', sel ? '#E11D48' : '#2aa5bc', sel ? 5 : 3, sel ? 'rgba(225,29,72,.25)' : m.tipo === 'area' ? 'rgba(56,192,217,.25)' : null);
-      const c = aPantalla(m.pts[0]); g.font = '600 13px Poppins, sans-serif'; g.fillStyle = '#12333A';
+      const c = aPantalla(m.pts[0]); g.font = '600 15px Poppins, sans-serif'; g.fillStyle = '#12333A';
       g.fillText(`${m.etiqueta || ''} ${num(m.valor, 1)}`, c.x + 8, c.y - 8);
     }
     if (pts.length) trazo(pts, modo === 'poligono', '#4E7C85', 3, modo === 'poligono' ? 'rgba(78,124,133,.2)' : null);
@@ -111,7 +111,7 @@ export async function pantallaPlanos({ shell, id }) {
         const ft = parseLongitud(txt), esc = calibrarEscala(pts[0], pts[1], ft);
         if (!isFinite(esc)) return toast(t('plans.badDistance'), 'err');
         plano.escalas = plano.escalas || {}; plano.escalas[pagina] = esc; guardar();
-        pts = []; modo = null; sh.close(); dibujar(); herramientas(); actualizarInfo(); toast(t('ui.saved'));
+        pts = []; modo = null; sh.close(); dibujar(); herramientas(); actualizarInfo(); guardadoOk();
       } }, t('ui.save'))), () => { pts = []; modo = null; dibujar(); herramientas(); });
   }
   function terminar() {
@@ -141,11 +141,11 @@ export async function pantallaPlanos({ shell, id }) {
       const asig = m.asignado ? (m.asignado.tipo === 'c' ? q.cuartos.find((c) => c.id === m.asignado.id)?.nombre : cat.partidas.find((p) => p.id === m.asignado.id)?.nombre) : t('plans.unassigned');
       lista.append(h('div', { class: 'item' },
         h('div', { class: 'main' }, h('b', {}, `${m.etiqueta || t('plans.measure')} - ${num(m.valor, 1)} ${m.tipo === 'area' ? 'ft²' : 'lf'}`), h('span', { class: 'sub' }, `${t('plans.page')} ${m.pagina} · ${asig}`)),
-        h('div', { class: 'right' },
-          h('button', { class: 'small', onclick: async () => { plano = q.planos.find((p) => p.id === m.planoId) || plano; if (pagina !== m.pagina) { pagina = m.pagina; await pintarPagina(); } realce = m.id; dibujar(); wrap.scrollIntoView({ block: 'nearest' }); setTimeout(() => { realce = null; dibujar(); }, 2500); } }, t('plans.view')), ' ',
-          m.asignado?.tipo === 'p' ? h('button', { class: 'small primary', onclick: () => { const p = cat.partidas.find((x) => x.id === m.asignado.id); q.lineas.push({ id: store.nuevoId(), partidaId: p.id, cantidad: Math.round(m.valor * 10) / 10, unidad: p.unidad, cuartoId: null, opciones: { manos: 2, dificultadId: 'normal' }, nota: m.etiqueta || '' }); guardar(); toast(t('plans.lineAdded')); } }, t('plans.addToQuote')) : null, ' ',
-          h('button', { class: 'small ghost', onclick: () => editarMedida(m) }, t('ui.edit')), ' ',
-          h('button', { class: 'small danger', 'aria-label': t('ui.delete'), onclick: () => { q.medidas = q.medidas.filter((x) => x !== m); guardar(); dibujar(); pintarLista(); } }, '✕'))));
+        acciones(
+          h('button', { class: 'small', onclick: async () => { plano = q.planos.find((p) => p.id === m.planoId) || plano; if (pagina !== m.pagina) { pagina = m.pagina; await pintarPagina(); } realce = m.id; dibujar(); wrap.scrollIntoView({ block: 'nearest' }); setTimeout(() => { realce = null; dibujar(); }, 2500); } }, t('plans.view')),
+          m.asignado?.tipo === 'p' ? h('button', { class: 'small primary', onclick: () => { const p = cat.partidas.find((x) => x.id === m.asignado.id); q.lineas.push({ id: store.nuevoId(), partidaId: p.id, cantidad: Math.round(m.valor * 10) / 10, unidad: p.unidad, cuartoId: null, opciones: { manos: 2, dificultadId: 'normal' }, nota: m.etiqueta || '' }); guardar(); toast(t('plans.lineAdded')); } }, t('plans.addToQuote')) : null,
+          h('button', { class: 'small ghost', onclick: () => editarMedida(m) }, t('ui.edit')),
+          h('button', { class: 'small danger', 'aria-label': t('ui.delete'), onclick: () => borrarConDeshacer(q.medidas, m, { msg: t('ui.deletedMeasure'), guardar, despues: () => { dibujar(); pintarLista(); } }) }, '✕'))));
     });
   }
   function herramientas() {

@@ -4,7 +4,7 @@ import { h, clear, add } from './util.js';
 import { t, getLang } from './i18n.js';
 import { S } from './state.js';
 import * as store from './store.js';
-import { field, selectField, toast, aviso } from './ui.js';
+import { field, selectField, toast, aviso, guardadoOk } from './ui.js';
 import { parsearInvitacion } from './bids-parse.js';
 import { analizarAlcance, notaAjuste, nombreOficio } from './bids-fit.js';
 import { bidNuevo, ESTADOS, vencimiento, formatoFechaLimite, aInputLocal } from './bids-calc.js';
@@ -53,8 +53,8 @@ async function pantallaLista({ shell }) {
         h('div', { class: 'main' }, h('b', {}, b.proyecto || t('bid.noName')),
           h('span', { class: 'sub' }, [b.gc, b.fechaLimite ? `${t('bid.due')}: ${formatoFechaLimite(b.fechaLimite)}` : ''].filter(Boolean).join(' · ')),
           h('span', { class: 'sub' }, e.v.tiene ? e.texto : '')),
-        h('div', { class: 'right' }, e.badge, h('br'), h('span', { class: 'badge est-' + b.estado }, t('bidstate.' + b.estado)),
-          b.ejemplo ? h('br') : null, b.ejemplo ? h('span', { class: 'badge ejemplo' }, t('bid.example')) : null)));
+        h('div', { class: 'right' }, e.badge, h('span', { class: 'badge est-' + b.estado }, t('bidstate.' + b.estado)),
+          b.ejemplo ? h('span', { class: 'badge ejemplo' }, t('bid.example')) : null)));
     }
   };
   pintar();
@@ -145,7 +145,7 @@ async function pantallaNueva({ shell }) {
   };
   pintarForm();
   shell(t('bid.newTitle'), h('div', {},
-    h('div', { class: 'row', style: 'margin-bottom:8px' }, h('a', { href: '#/licitaciones', class: 'btn small ghost' }, '← ' + t('nav.bids'))),
+    h('div', { class: 'row', style: 'margin-bottom:8px' }, h('a', { href: '#/licitaciones', class: 'btn ghost' }, '← ' + t('nav.bids'))),
     aviso('info', t('bid.pasteHint')),
     h('div', { class: 'card stack' }, h('h2', {}, t('bid.paste')),
       field({ label: t('bid.pasteLabel'), area: true, value: '', placeholder: 'BID PROJECT | ...', onInput: (v) => { texto = v; } }),
@@ -160,7 +160,7 @@ async function pantallaEditor({ shell, id, paso }) {
   if (!bid) return shell(t('ui.error'), aviso('err', t('bid.notFound404')), '#/licitaciones');
   const p0 = PASOS.includes(paso) ? paso : 'datos';
   let timer;
-  const guardarYa = async () => { clearTimeout(timer); try { await store.saveLicitacion(bid); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
+  const guardarYa = async () => { clearTimeout(timer); try { await store.saveLicitacion(bid); guardadoOk(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
   const guardar = () => { clearTimeout(timer); timer = setTimeout(guardarYa, 350); };
   const body = h('div');
   const cab = h('div');
@@ -197,6 +197,6 @@ async function pantallaEditor({ shell, id, paso }) {
       h('button', { class: 'danger block mt', onclick: async () => { if (confirm(t('bid.deleteConfirm'))) { await store.borrarLicitacion(id); location.hash = '#/licitaciones'; } } }, t('bid.delete')));
   }
   shell(bid.proyecto || t('nav.bids'), h('div', {},
-    h('div', { class: 'row', style: 'margin-bottom:8px' }, h('a', { href: '#/licitaciones', class: 'btn small ghost' }, '← ' + t('nav.bids'))), body), '#/licitaciones');
+    h('div', { class: 'row', style: 'margin-bottom:8px' }, h('a', { href: '#/licitaciones', class: 'btn ghost' }, '← ' + t('nav.bids'))), body), '#/licitaciones');
   render();
 }

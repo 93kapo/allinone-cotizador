@@ -27,13 +27,13 @@ export function navegar(hash) { if (location.hash === hash) ruta(); else locatio
 function shell(titulo, contenido, seccion) {
   clear(root);
   root.append(
-    h('header', { class: 'top' }, h('img', { src: 'icons/isotipo-teal.png', alt: '' }), h('div', { class: 'ttl' }, titulo),
-      S.modo === 'nube' ? h('button', { class: 'small', onclick: async () => { await store.authApi.salir(); location.reload(); } }, t('ui.logout')) : null),
+    h('header', { class: 'top' }, h('img', { src: 'icons/isotipo-teal.png', alt: '' }), h('div', { class: 'ttl' }, titulo), h('span', { id: 'guardado', class: 'savedtag', role: 'status' }),
+      S.modo === 'nube' ? h('button', { onclick: async () => { await store.authApi.salir(); location.reload(); } }, t('ui.logout')) : null),
     h('main', { id: 'main' },
       S.modo === 'local' ? h('div', { class: 'banner local', role: 'status' }, h('b', {}, t('ui.localBanner')), h('span', {}, t('ui.localBannerHint'))) : null,
       contenido),
     h('nav', { class: 'bar', 'aria-label': t('ui.nav') },
-      ...[['#/', 'home', t('nav.home')], ['#/licitaciones', 'bid', t('nav.bids')], ['#/planos', 'plan', t('nav.plans')], ['#/precios', 'tag', t('nav.prices')], ['#/ajustes', 'gear', t('nav.settings')]]
+      ...[['#/', 'home', t('nav.home')], ['#/licitaciones', 'bid', t('nav.bidsShort')], ['#/planos', 'plan', t('nav.plans')], ['#/precios', 'tag', t('nav.prices')], ['#/ajustes', 'gear', t('nav.settings')]]
         .map(([href, ic, txt]) => h('a', { href, 'aria-current': seccion === href ? 'page' : null }, icon(ic), txt))));
   window.scrollTo(0, 0);
 }
@@ -66,7 +66,7 @@ async function inicio() {
       let tot = 0; try { tot = calcularCotizacion(q).totales.precio; } catch { /* datos incompletos */ }
       cont.append(h('a', { href: `#/cot/${q.id}`, class: 'card item', style: 'text-decoration:none;color:inherit' },
         h('div', { class: 'main' }, h('b', {}, q.cliente?.nombre || t('home.noName')), h('span', { class: 'sub' }, `${q.numero} · ${fechaCorta(q.actualizado || q.creado)}`)),
-        h('div', { class: 'right' }, h('b', {}, usd(tot)), h('br'), h('span', { class: 'badge ' + q.estado }, t('estado.' + q.estado)))));
+        h('div', { class: 'right' }, h('b', {}, usd(tot)), h('span', { class: 'badge ' + q.estado }, t('estado.' + q.estado)))));
     }
   };
   pintar();
