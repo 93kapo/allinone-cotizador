@@ -1,5 +1,5 @@
 // sw.js - Service worker: shell cacheado + librerías CDN cacheadas (funciona offline).
-const VERSION = 'cotizador-v1.3.0';
+const VERSION = 'cotizador-v1.4.0';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css', 'app.js', 'state.js', 'store.js', 'firebase-config.js', 'defaults.js', 'engine.js',
   'i18n.js', 'ui.js', 'util.js', 'pdf.js', 'cotizacion.js', 'planos.js', 'precios.js', 'ajustes.js',
@@ -12,10 +12,21 @@ const CDN = [
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
 ];
+/** Una respuesta con r.redirected no puede usarse para una navegación: se copia sin esa marca. */
+function sinRedireccion(r) {
+  return r.redirected ? new Response(r.body, { status: r.status, statusText: r.statusText, headers: r.headers }) : r;
+}
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
     const c = await caches.open(VERSION);
-    await c.addAll(SHELL);
+    // Atómico como addAll (si algo falla, el SW nuevo no se instala), pero re-empaqueta respuestas redirigidas
+    // (Cloudflare redirige /index.html a /): una respuesta "redirected" no puede servir una navegación.
+    await Promise.all(SHELL.map(async (u) => {
+      const req = new Request(u, { cache: 'reload' });
+      const r = await fetch(req);
+      if (!r.ok) throw new Error('No se pudo precachear ' + u + ' (' + r.status + ')');
+      await c.put(req, sinRedireccion(r));
+    }));
     await Promise.all(CDN.map((u) => fetch(u, { mode: 'cors' }).then((r) => r.ok && c.put(u, r)).catch(() => {}))); // si falla, se cachea al primer uso
     self.skipWaiting();
   })());
@@ -40,11 +51,11 @@ self.addEventListener('fetch', (e) => {
     if (hit && !mismo) return hit;
     try {
       const r = await fetch(req);
-      if (r.ok) c.put(req, r.clone());
+      if (r.ok) c.put(req, sinRedireccion(r.clone()));
       return r;
     } catch (err) {
       if (hit) return hit;
-      if (req.mode === 'navigate') return (await c.match('index.html')) || Response.error();
+      if (req.mode === 'navigate') return (await c.match('./')) || (await c.match('index.html')) || Response.error();
       return Response.error();
     }
   })());

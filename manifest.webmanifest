@@ -2,7 +2,7 @@
   "name": "Cotizador - All In One Painting & Remodeling",
   "short_name": "Cotizador",
   "description": "Cotizador privado de All In One Painting & Remodeling Group LLC",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
