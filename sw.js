@@ -1,5 +1,5 @@
 // sw.js - Service worker: shell cacheado + librerías CDN cacheadas (funciona offline).
-const VERSION = 'cotizador-v1.1.0';
+const VERSION = 'cotizador-v1.2.0';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css', 'app.js', 'state.js', 'store.js', 'firebase-config.js', 'defaults.js', 'engine.js',
   'i18n.js', 'ui.js', 'util.js', 'pdf.js', 'cotizacion.js', 'planos.js', 'precios.js', 'ajustes.js',
