@@ -1,0 +1,18 @@
+# Datos de clientes y planos: NUNCA al repositorio
+respaldo-cotizador-*.json
+*.pdf
+*.dwg
+Propuesta-*
+INTERNO-*
+clientes/
+planos/
+# Secretos / entorno
+.env
+.env.*
+*.key
+serviceAccount*.json
+.firebase/
+.firebaserc
+firebase-debug.log
+node_modules/
+.DS_Store

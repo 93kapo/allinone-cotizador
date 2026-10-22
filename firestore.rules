@@ -1,0 +1,20 @@
+rules_version = '2';
+// Solo estos 3 correos (verificados) pueden leer/escribir. CAMBIE LOS EMAILS y vuelva a desplegar:
+//   firebase deploy --only firestore:rules
+// El campo "Correos permitidos" de Ajustes NO cambia estas reglas.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function permitido() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in [
+          'dueno@EJEMPLO.com',
+          'esposa@EJEMPLO.com',
+          'hijo@EJEMPLO.com'
+        ];
+    }
+    match /{document=**} {
+      allow read, write: if permitido();
+    }
+  }
+}
