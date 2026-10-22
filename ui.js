@@ -54,6 +54,8 @@ export function deshacer(msg, onUndo, ms = 10000) {
   _undoEl = el; document.body.append(el);
   _undoTimer = setTimeout(() => { el.remove(); if (_undoEl === el) _undoEl = null; }, ms);
 }
+/** Cierra la barra Deshacer (al cambiar de pantalla/paso el objeto en memoria ya no es el vigente). */
+export function cerrarDeshacer() { clearTimeout(_undoTimer); _undoEl?.remove(); _undoEl = null; }
 /** Quita el elemento de una lista y ofrece Deshacer (lo vuelve a poner en su posición original). */
 export function borrarConDeshacer(lista, item, { msg, despues, guardar }) {
   const i = lista.indexOf(item);

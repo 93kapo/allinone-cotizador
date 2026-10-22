@@ -112,28 +112,30 @@ export function pasoCostos({ body, bid, guardar, guardarYa }) {
 
   // ----- Resumen -----
   const ctl = controlGanancia({ id: 'bmg', bp: bid.margenBp, pisoBp: bid.snapshot.ajustes.margenPisoBp, onChange: (bp) => { bid.margenBp = bp; guardar(); pintarResumen(); } });
+  // La parte fija (deslizador e imprevistos) NO se repinta: sacar un <input type=range> del DOM a mitad de un arrastre lo corta.
+  const kpiBox = h('div'), precioBox = h('div');
+  add(resumenBox,
+    h('div', { class: 'card' }, h('h2', {}, t('bid.summary')), kpiBox, ctl.el,
+      pctField(t('rev.contingency'), bid.contingenciaBp, (v) => { bid.contingenciaBp = v; guardar(); pintarResumen(); pintarLineas(); }, t('rev.contingencyHint')),
+      h('p', { class: 'muted' }, t('rev.marginNote'))),
+    precioBox);
   function pintarResumen() {
-    const foco = document.activeElement?.id; // el control de ganancia se vuelve a insertar: conserva el foco
-    clear(resumenBox);
-    setTimeout(() => { if (foco && document.activeElement?.id !== foco) document.getElementById(foco)?.focus(); }, 0);
+    clear(kpiBox); clear(precioBox);
     const res = cal();
-    if (!res) { add(resumenBox, aviso('err', t('ui.error'))); return; }
+    if (!res) { add(kpiBox, aviso('err', t('ui.error'))); return; }
     const sem = res.semaforo;
     ctl.setReal(res.margenBp);
     const semTxt = t('bidsem.' + sem, pct1(res.pisoBp));
     const fila = (k, v, cls) => h('tr', { class: cls }, h('td', {}, k), h('td', { class: 'r' }, v));
-    add(resumenBox,
-      h('div', { class: 'card' }, h('h2', {}, t('bid.summary')),
-        h('div', { class: 'kpis' },
-          h('div', { class: 'kpi' }, h('small', {}, t('bid.totalCost')), h('b', {}, usd(res.costoTotal))),
-          h('div', { class: 'kpi' }, h('small', {}, t('bid.totalPrice')), h('b', {}, usd(res.total))),
-          h('div', { class: 'kpi' }, h('small', {}, t('rev.profit')), h('b', {}, usd(res.ganancia))),
-          h('div', { class: 'kpi sem-' + sem }, h('small', {}, t('rev.marginReal')), h('b', {}, `${pct1(res.margenBp)} (${t('rev.markup')} ${res.markupPct.toFixed(1)}%)`))),
-        h('div', { class: 'banner mt ' + (sem === 'verde' ? 'ok' : sem === 'ambar' ? 'warn' : 'err'), role: 'status' }, h('b', {}, (sem === 'verde' ? '● ' : sem === 'ambar' ? '▲ ' : '■ ')), semTxt),
-        res.errores.length ? aviso('err', t('bid.lineErrors', res.errores.length)) : null,
-        ctl.el,
-        pctField(t('rev.contingency'), bid.contingenciaBp, (v) => { bid.contingenciaBp = v; guardar(); pintarResumen(); pintarLineas(); }, t('rev.contingencyHint')),
-        h('p', { class: 'muted' }, t('rev.marginNote'))),
+    add(kpiBox,
+      h('div', { class: 'kpis' },
+        h('div', { class: 'kpi' }, h('small', {}, t('bid.totalCost')), h('b', {}, usd(res.costoTotal))),
+        h('div', { class: 'kpi' }, h('small', {}, t('bid.totalPrice')), h('b', {}, usd(res.total))),
+        h('div', { class: 'kpi' }, h('small', {}, t('rev.profit')), h('b', {}, usd(res.ganancia))),
+        h('div', { class: 'kpi sem-' + sem }, h('small', {}, t('rev.marginReal')), h('b', {}, `${pct1(res.margenBp)} (${t('rev.markup')} ${res.markupPct.toFixed(1)}%)`))),
+      h('div', { class: 'banner mt ' + (sem === 'verde' ? 'ok' : sem === 'ambar' ? 'warn' : 'err'), role: 'status' }, h('b', {}, (sem === 'verde' ? '● ' : sem === 'ambar' ? '▲ ' : '■ ')), semTxt),
+      res.errores.length ? aviso('err', t('bid.lineErrors', res.errores.length)) : null);
+    add(precioBox,
       h('div', { class: 'card' }, h('h2', {}, t(res.hayDesglose ? 'bid.priceBreakdown' : 'bid.totalPrice')),
         res.hayDesglose ? h('table', {}, h('tbody', {},
           res.grupos.map((g) => fila(g.id === null ? t('bid.unassigned') : g.nombre, usd(g.precio))),

@@ -5,7 +5,7 @@ import { S } from './state.js';
 import * as store from './store.js';
 import { calcularCotizacion, contingenciaPorDefecto } from './engine.js';
 import { snapshotCatalogo } from './engine.js';
-import { toast, selectField, field } from './ui.js';
+import { toast, selectField, field, cerrarDeshacer } from './ui.js';
 import { pantallaCotizacion } from './cotizacion.js';
 import { pantallaPlanos } from './planos.js';
 import { pantallaPrecios } from './precios.js';
@@ -25,6 +25,7 @@ const icon = (k) => { const s = document.createElementNS('http://www.w3.org/2000
 export function navegar(hash) { if (location.hash === hash) ruta(); else location.hash = hash; }
 
 function shell(titulo, contenido, seccion) {
+  cerrarDeshacer();
   clear(root);
   root.append(
     h('header', { class: 'top' }, h('img', { src: 'icons/isotipo-teal.png', alt: '' }), h('div', { class: 'ttl' }, titulo), h('span', { id: 'guardado', class: 'savedtag', role: 'status' }),

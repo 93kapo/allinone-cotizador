@@ -162,7 +162,7 @@ export async function generarPdfInterno(q, calc, aj, cat) {
   c.h2(tr(lang, 'pdf.costStructure'));
   fila(tr(lang, 'pdf.materials'), usd(t.materiales));
   fila(`${tr(lang, 'pdf.salesTax')} (${(aj.impuestoVentasBp / 100).toFixed(2)}%)`, usd(t.impuestoMat));
-  fila(`${tr(lang, 'pdf.labor')} (${num(t.horas, 1)} h, burden ${(aj.burdenBp / 100).toFixed(0)}%)`, usd(t.manoObra));
+  fila(`${tr(lang, 'pdf.labor')} (${num(t.horas, 1)} h, ${lang === 'es' ? 'cargas' : 'burden'} ${(aj.burdenBp / 100).toFixed(0)}%)`, usd(t.manoObra));
   fila(tr(lang, 'pdf.subs'), usd(t.subs));
   fila(tr(lang, 'pdf.other'), usd(t.otros));
   fila(tr(lang, 'pdf.directs'), usd(t.directos), { bold: true });
