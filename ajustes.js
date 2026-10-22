@@ -18,7 +18,7 @@ export async function pantallaAjustes({ shell }) {
     h('label', { class: 'btn block', style: 'cursor:pointer' }, t('set.import'),
       h('input', { type: 'file', accept: 'application/json,.json', class: 'sr', onchange: async (e) => {
         const f = e.target.files[0]; if (!f) return;
-        try { const n = await store.importarRespaldo(await f.text()); S.ajustes = await store.getAjustes(); S.catalogo = await store.getCatalogo(); toast(t('set.imported', n)); }
+        try { const [nq, nb] = await store.importarRespaldo(await f.text()); S.ajustes = await store.getAjustes(); S.catalogo = await store.getCatalogo(); toast(nb ? t('set.importedBids', nq, nb) : t('set.imported', nq)); }
         catch (err) { toast(t('ui.error') + ': ' + err.message, 'err'); }
       } })),
     h('p', { class: 'muted' }, t('set.backupNoPlans')));

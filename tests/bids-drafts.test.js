@@ -6,6 +6,7 @@ import { calcularBid, vencimiento, formatoFechaLimite, fechaLimiteADate, semafor
 import { oficiosCotizados, construirBorrador, bloqueos, armarMailto, datosFirma, contarMarcadores, hayFuga, MARCADOR, TIPOS } from '../bids-drafts.js';
 import { calcularCotizacion, TEXTO_CONFIRMACION } from '../engine.js';
 import { dict } from '../i18n.js';
+import { OFICIOS, nombreOficio } from '../bids-fit.js';
 
 const AHORA = new Date(2026, 9, 22, 12, 0); // 22-oct-2026, hora local (hoy)
 const mk = () => { let n = 0; return bidEjemplo({ id: 'b1', ids: () => 'i' + n++, ajustes: ajustesIniciales(), catalogo: catalogoInicial(), ahora: AHORA }); };
@@ -143,4 +144,22 @@ test('ejemplo: marcado EJEMPLO, sin correo ni teléfono directo, nota de cifras 
   assert.ok(!/@/.test(JSON.stringify(b.contacto + b.email)));
   assert.equal(b.telefono, '(770) 751-5463 x1163');
   assert.equal(b.breakouts.length, 6);
+});
+
+test('fuga: "overhead doors" (oficio del alcance) no es fuga; "nuestro margen" sí', () => {
+  const b = mk(); const r = calcularBid(b); const aj = ajConFirma();
+  const rfi = construirBorrador({ tipo: 'rfi', lang: 'en', bid: b, ajustes: aj, resumen: r, rfi: 'Are the overhead doors and frames in our scope? Paint overhead doors?' });
+  assert.equal(hayFuga(rfi.asunto, rfi.cuerpo), false);
+  assert.deepEqual(bloqueos({ destino: 'correo', tipo: 'rfi', asunto: rfi.asunto, cuerpo: rfi.cuerpo, vencida: false, resumen: r }), []);
+  assert.equal(hayFuga('Nuestro margen es 30%'), true);
+  assert.equal(hayFuga('our markup is 50%'), true);
+  assert.equal(hayFuga('costo interno: $5'), true);
+  assert.equal(hayFuga('profit and internal cost'), true);
+  assert.equal(hayFuga('marginal improvements'), false);
+});
+
+test('i18n: todos los oficios tienen nombre es/en en el diccionario', () => {
+  for (const o of OFICIOS) { assert.ok(('bidtrade.' + o.key) in dict.es && ('bidtrade.' + o.key) in dict.en, o.key); }
+  assert.equal(nombreOficio({ key: 'paint' }, 'en'), 'Paints and coatings');
+  assert.equal(nombreOficio({ key: 'paint' }, 'es'), 'Pintura y recubrimientos');
 });

@@ -12,38 +12,38 @@ const N = (a) => a.map((x) => normalizar(x).trim());
 
 // hace: true = oficio de la empresa; sub: solo por subcontrato. cat = categoría del catálogo para sugerir partidas.
 export const OFICIOS = [
-  { key: 'paint', hace: true, cat: 'pintura', es: 'Pintura y recubrimientos', en: 'Paints and coatings',
+  { key: 'paint', hace: true, cat: 'pintura',
     kw: N(['paints and coatings', 'paint and coating', 'painting', 'paint', 'coatings', 'coating', 'pintura', 'pinturas', 'pintar', 'recubrimientos', 'recubrimiento']) },
-  { key: 'drywall', hace: true, cat: 'drywall', es: 'Drywall (yeso)', en: 'Gypsum drywall',
+  { key: 'drywall', hace: true, cat: 'drywall',
     kw: N(['gypsum drywall', 'drywall', 'gypsum board', 'gypsum', 'sheetrock', 'tablaroca', 'tabla roca', 'paneles de yeso', 'panel de yeso', 'yeso']) },
-  { key: 'flooring', hace: true, cat: 'pisos', es: 'Pisos resilientes / alfombra', en: 'Resilient flooring / carpet',
+  { key: 'flooring', hace: true, cat: 'pisos',
     kw: N(['resilient flooring', 'flooring', 'floor covering', 'lvp', 'luxury vinyl', 'vinyl plank', 'vinyl flooring', 'vct', 'carpet', 'carpeting', 'laminate flooring', 'laminate', 'piso', 'pisos', 'alfombra', 'alfombras', 'piso vinilico']) },
-  { key: 'tile', hace: true, cat: 'pisos', es: 'Tile (cerámica / porcelana)', en: 'Hard tile',
+  { key: 'tile', hace: true, cat: 'pisos',
     kw: N(['hard tile', 'ceramic tile', 'porcelain tile', 'tile', 'tiles', 'tiling', 'porcelain', 'azulejo', 'azulejos', 'baldosa', 'baldosas']),
     quitar: N(['acoustical ceiling tile', 'acoustic ceiling tile', 'ceiling tile', 'acoustical tile', 'acoustic tile', 'roof tile', 'tile roof', 'tile roofing']) },
-  { key: 'carpentry', hace: true, cat: 'otros', es: 'Carpintería de acabado / millwork', en: 'Finish carpentry / millwork',
+  { key: 'carpentry', hace: true, cat: 'otros',
     kw: N(['finish carpentry', 'trim carpentry', 'millwork', 'casework', 'cabinetry', 'cabinets', 'cabinet', 'carpinteria de acabado', 'carpinteria de acabados', 'carpinteria fina', 'molduras', 'gabinetes']) },
-  { key: 'decks', hace: true, cat: 'deck', es: 'Decks (terrazas de madera)', en: 'Decks',
+  { key: 'decks', hace: true, cat: 'deck',
     kw: N(['decks', 'deck', 'decking', 'terraza de madera', 'terrazas de madera']),
     quitar: N(['roof decking', 'roof deck', 'metal decking', 'metal deck', 'steel decking', 'steel deck', 'floor deck', 'deck drain']) },
-  { key: 'bathkitchen', hace: true, cat: 'remodelacion', es: 'Baños y cocinas', en: 'Bathrooms / kitchens',
+  { key: 'bathkitchen', hace: true, cat: 'remodelacion',
     kw: N(['bathrooms', 'bathroom', 'kitchens', 'kitchen', 'bano', 'banos', 'cocina', 'cocinas']) },
-  { key: 'electrical', hace: true, sub: true, cat: 'electricidad', es: 'Electricidad (solo subcontrato)', en: 'Electrical (subcontract only)',
+  { key: 'electrical', hace: true, sub: true, cat: 'electricidad',
     kw: N(['electrical', 'electrician', 'electricidad', 'electrico', 'electrica', 'electricos', 'electricista']) },
 
-  { key: 'roughcarp', hace: false, es: 'Carpintería gruesa / framing', en: 'Rough carpentry / framing', kw: N(['rough carpentry', 'framing', 'carpinteria gruesa']) },
-  { key: 'earthwork', hace: false, es: 'Movimiento de tierra', en: 'Earthwork', kw: N(['earthwork', 'excavation', 'excavating', 'grading', 'movimiento de tierra', 'excavacion', 'nivelacion']) },
-  { key: 'demolition', hace: false, es: 'Demolición', en: 'Demolition', kw: N(['site demolition', 'building demolition', 'demolition', 'demolicion']) },
-  { key: 'steel', hace: false, es: 'Acero estructural', en: 'Structural steel', kw: N(['structural steel', 'steel erection', 'steel joists', 'miscellaneous metals', 'metal fabrication', 'acero estructural', 'estructura metalica']) },
-  { key: 'concrete', hace: false, es: 'Concreto / mampostería', en: 'Concrete / masonry', kw: N(['cast in place concrete', 'site concrete', 'polished concrete', 'concrete', 'precast', 'masonry', 'curbs', 'walks', 'sidewalks', 'concreto', 'hormigon', 'mamposteria', 'aceras']) },
-  { key: 'roofing', hace: false, es: 'Techos (roofing)', en: 'Roofing', kw: N(['roofing', 'roof accessories', 'roofs', 'roof', 'single ply membrane', 'techumbre', 'techado', 'tejado']) },
-  { key: 'plumbing', hace: false, es: 'Plomería', en: 'Plumbing', kw: N(['plumbing', 'plomeria', 'fontaneria']) },
-  { key: 'hvac', hace: false, es: 'HVAC / aire acondicionado', en: 'HVAC', kw: N(['hvac', 'air conditioning', 'heating', 'ventilation', 'refrigeration', 'mechanical', 'aire acondicionado', 'climatizacion']) },
-  { key: 'fire', hace: false, es: 'Protección contra incendios', en: 'Fire protection / alarm', kw: N(['fire protection', 'fire alarm', 'fire sprinkler', 'fire extinguishers', 'fire extinguisher', 'fireproofing', 'sprinklers', 'sprinkler', 'proteccion contra incendios', 'alarma contra incendio', 'rociadores', 'extintores']) },
-  { key: 'paving', hace: false, es: 'Pavimentación / asfalto', en: 'Paving / asphalt', kw: N(['asphalt paving', 'asphalt striping', 'paving', 'asphalt', 'striping', 'pavimento', 'pavimentacion', 'asfalto']) },
-  { key: 'sitework', hace: false, es: 'Obra civil / paisajismo', en: 'Sitework / landscaping', kw: N(['erosion control', 'site utilities', 'soil treatment', 'site furnishings', 'landscaping', 'irrigation', 'site work', 'sitework', 'paisajismo', 'jardineria', 'riego']) },
-  { key: 'envelope', hace: false, es: 'Aislamiento / impermeabilización / EIFS', en: 'Insulation / waterproofing / EIFS', kw: N(['foamed in place insulation', 'building insulation', 'insulation', 'waterproofing', 'eifs', 'aislamiento', 'impermeabilizacion']) },
-  { key: 'vertical', hace: false, es: 'Elevadores / lifts', en: 'Elevators / lifts', kw: N(['elevators', 'elevator', 'lifts', 'ascensores', 'elevadores']) },
+  { key: 'roughcarp', hace: false, kw: N(['rough carpentry', 'framing', 'carpinteria gruesa']) },
+  { key: 'earthwork', hace: false, kw: N(['earthwork', 'excavation', 'excavating', 'grading', 'movimiento de tierra', 'excavacion', 'nivelacion']) },
+  { key: 'demolition', hace: false, kw: N(['site demolition', 'building demolition', 'demolition', 'demolicion']) },
+  { key: 'steel', hace: false, kw: N(['structural steel', 'steel erection', 'steel joists', 'miscellaneous metals', 'metal fabrication', 'acero estructural', 'estructura metalica']) },
+  { key: 'concrete', hace: false, kw: N(['cast in place concrete', 'site concrete', 'polished concrete', 'concrete', 'precast', 'masonry', 'curbs', 'walks', 'sidewalks', 'concreto', 'hormigon', 'mamposteria', 'aceras']) },
+  { key: 'roofing', hace: false, kw: N(['roofing', 'roof accessories', 'roofs', 'roof', 'single ply membrane', 'techumbre', 'techado', 'tejado']) },
+  { key: 'plumbing', hace: false, kw: N(['plumbing', 'plomeria', 'fontaneria']) },
+  { key: 'hvac', hace: false, kw: N(['hvac', 'air conditioning', 'heating', 'ventilation', 'refrigeration', 'mechanical', 'aire acondicionado', 'climatizacion']) },
+  { key: 'fire', hace: false, kw: N(['fire protection', 'fire alarm', 'fire sprinkler', 'fire extinguishers', 'fire extinguisher', 'fireproofing', 'sprinklers', 'sprinkler', 'proteccion contra incendios', 'alarma contra incendio', 'rociadores', 'extintores']) },
+  { key: 'paving', hace: false, kw: N(['asphalt paving', 'asphalt striping', 'paving', 'asphalt', 'striping', 'pavimento', 'pavimentacion', 'asfalto']) },
+  { key: 'sitework', hace: false, kw: N(['erosion control', 'site utilities', 'soil treatment', 'site furnishings', 'landscaping', 'irrigation', 'site work', 'sitework', 'paisajismo', 'jardineria', 'riego']) },
+  { key: 'envelope', hace: false, kw: N(['foamed in place insulation', 'building insulation', 'insulation', 'waterproofing', 'eifs', 'aislamiento', 'impermeabilizacion']) },
+  { key: 'vertical', hace: false, kw: N(['elevators', 'elevator', 'lifts', 'ascensores', 'elevadores']) },
 ];
 
 const reKw = (kw) => new RegExp('(?: )' + kw + '(?:s|es)?(?= )');
@@ -63,7 +63,7 @@ export function itemsAlcance(texto) {
 
 /**
  * analizarAlcance(texto) -> {
- *   vacio, relevantes[{key,es,en,sub,cat,coincidencias[]}], fuera[...], sinClasificar[string],
+ *   vacio, relevantes[{key,sub,cat,coincidencias[]}], fuera[...], sinClasificar[string],
  *   veredicto: 'vacio' | 'sub' | 'no-encaja', soloSub: bool }
  */
 export function analizarAlcance(texto) {
@@ -74,7 +74,7 @@ export function analizarAlcance(texto) {
   for (const o of OFICIOS) {
     const c = coincidencias(todo, o);
     if (!c.length) continue;
-    const e = { key: o.key, es: o.es, en: o.en, sub: !!o.sub, cat: o.cat || null, coincidencias: c };
+    const e = { key: o.key, sub: !!o.sub, cat: o.cat || null, coincidencias: c };
     (o.hace ? res.relevantes : res.fuera).push(e);
   }
   const clasif = (it) => OFICIOS.some((o) => coincidencias(normalizar(it), o).length);
@@ -86,7 +86,8 @@ export function analizarAlcance(texto) {
   return res;
 }
 
-export const nombreOficio = (o, lang) => (lang === 'en' ? o.en : o.es);
+/** Nombre del oficio en el idioma pedido (claves bidtrade.<key> en i18n.js). */
+export const nombreOficio = (o, lang) => tr(lang === 'en' ? 'en' : 'es', 'bidtrade.' + o.key);
 
 /** Nota clara para mostrar al usuario. */
 export function notaAjuste(res, lang = 'es') {

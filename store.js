@@ -146,5 +146,5 @@ export async function importarRespaldo(texto) {
   await saveAjustes(d.ajustes); await saveCatalogo(d.catalogo);
   for (const q of d.cotizaciones) await backend.guardar(q);
   for (const b of Array.isArray(d.licitaciones) ? d.licitaciones : []) await backend.guardarLic(b); // respaldos viejos no la traen
-  return d.cotizaciones.length + (Array.isArray(d.licitaciones) ? d.licitaciones.length : 0);
+  return [d.cotizaciones.length, Array.isArray(d.licitaciones) ? d.licitaciones.length : 0]; // [cotizaciones, licitaciones]
 }

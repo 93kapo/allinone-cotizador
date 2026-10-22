@@ -227,7 +227,7 @@ export async function generarPdfBid(bid, res, aj, lang = 'en') {
   c.y += 1;
   c.text(tr(lang, 'bid.d.proposal.valid', parseInt(q.validezDias) || aj.validezDias || 30), { size: 9, color: GRAY });
 
-  c.need(40); c.y += 8;
+  c.need(22); c.y += 8;
   doc.setDrawColor(...INK); doc.setLineWidth(0.3);
   doc.line(c.m, c.y, c.m + 80, c.y);
   c.y += 4;

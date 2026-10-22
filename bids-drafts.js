@@ -80,7 +80,8 @@ export function construirBorrador({ tipo, lang = 'en', bid, ajustes, resumen, rf
 // ---------- Marcadores y fugas ----------
 export const contarMarcadores = (...textos) => textos.reduce((n, t) => n + (String(t ?? '').split(MARCADOR).length - 1), 0);
 /** Palabras que NUNCA deben salir al cliente. */
-export const RE_FUGA = /margen|margin|markup|costo interno|internal cost|ganancia|profit|overhead|contingenc/i;
+// Con límites de palabra y sin 'overhead'/'contingency' ("overhead doors" es un oficio legítimo del alcance).
+export const RE_FUGA = /\b(?:margen|margin|mark-?up|costos? internos?|internal costs?|ganancia|profit)\b/i;
 export const hayFuga = (...textos) => RE_FUGA.test(textos.join('\n'));
 
 /**
