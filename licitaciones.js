@@ -11,8 +11,9 @@ import { bidNuevo, ESTADOS, vencimiento, formatoFechaLimite, aInputLocal } from 
 import { bidEjemplo } from './bids-ejemplo.js';
 import { pasoCostos } from './licitaciones-costeo.js';
 import { pasoBorradores } from './licitaciones-borradores.js';
+import { pasoCantidades } from './licitaciones-cantidades.js';
 
-const PASOS = ['datos', 'costos', 'borradores'];
+const PASOS = ['datos', 'cantidades', 'costos', 'borradores'];
 
 /** "2 d 3 h" / "3 h 20 min" / "12 min". */
 const duracion = (v) => (v.dias > 0 ? `${v.dias} d ${v.horas} h` : v.horas > 0 ? `${v.horas} h ${v.minutos} min` : `${v.minutos} min`);
@@ -181,6 +182,7 @@ async function pantallaEditor({ shell, id, paso }) {
     add(body, cab, h('div', { class: 'steps', role: 'tablist' }, PASOS.map((p, i) =>
       h('button', { role: 'tab', 'aria-current': p === p0 ? 'step' : null, onclick: () => { guardarYa().then(() => { location.hash = `#/licitaciones/${id}/${p}`; }); } }, `${i + 1}. ${t('bidstep.' + p)}`))));
     if (p0 === 'datos') pasoDatos();
+    else if (p0 === 'cantidades') pasoCantidades({ body, ent: bid, tipo: 'bid', guardar, guardarYa });
     else if (p0 === 'costos') pasoCostos({ body, bid, guardar, guardarYa });
     else pasoBorradores({ body, bid, guardar, guardarYa });
   };
@@ -193,7 +195,7 @@ async function pantallaEditor({ shell, id, paso }) {
         formDatos(bid, { onChange: (k) => { if (k === 'alcance') ajuste.pintar(); if (k === 'fechaLimite' || k === 'proyecto' || k === 'gc') pintarCab(); guardar(); } }),
         field({ label: t('bid.f.notes'), area: true, value: bid.notas || '', onInput: (v) => { bid.notas = v; guardar(); } })),
       h('div', { class: 'card stack' }, h('h2', {}, t('bid.fit.title')), ajuste.el),
-      h('button', { class: 'primary block', onclick: () => guardarYa().then(() => { location.hash = `#/licitaciones/${id}/costos`; }) }, t('ui.next')),
+      h('button', { class: 'primary block', onclick: () => guardarYa().then(() => { location.hash = `#/licitaciones/${id}/cantidades`; }) }, t('ui.next')),
       h('button', { class: 'danger block mt', onclick: async () => { if (confirm(t('bid.deleteConfirm'))) { await store.borrarLicitacion(id); location.hash = '#/licitaciones'; } } }, t('bid.delete')));
   }
   shell(bid.proyecto || t('nav.bids'), h('div', {},

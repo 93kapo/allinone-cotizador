@@ -6,6 +6,8 @@ Propuesta-*
 INTERNO-*
 clientes/
 planos/
+cantidades-importadas/
+*-cantidades-real*.json
 # Secretos / entorno
 .env
 .env.*

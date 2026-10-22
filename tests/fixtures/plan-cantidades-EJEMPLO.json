@@ -1,0 +1,311 @@
+{
+  "version": 1,
+  "plano": {
+    "archivo": "EJEMPLO-plano-ficticio.pdf",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "revision": "EJEMPLO Rev 0",
+    "fecha": "2026-01-01",
+    "addenda": "EJEMPLO: sin addenda"
+  },
+  "hojas": [
+    {
+      "pagina": 1,
+      "numero": "A1.1",
+      "titulo": "EJEMPLO - Planta baja",
+      "escala_texto": "1/4\" = 1'-0\"",
+      "escala_verificada": true
+    },
+    {
+      "pagina": 2,
+      "numero": "A2.2",
+      "titulo": "EJEMPLO - Cuadro de acabados",
+      "escala_texto": "Sin escala",
+      "escala_verificada": false
+    }
+  ],
+  "cuartos": [
+    {
+      "nombre": "EJEMPLO Sala",
+      "numero": "101",
+      "area_sf": {
+        "valor": 168,
+        "fuente": {
+          "pagina": 2,
+          "bbox": [
+            72,
+            310,
+            180,
+            322
+          ],
+          "texto_literal": "SALA 101 - 168 SF",
+          "metodo": "tabla_pdf"
+        },
+        "confianza": "alta"
+      },
+      "perimetro_lf": {
+        "valor": 52,
+        "fuente": {
+          "pagina": 1,
+          "bbox": [
+            210,
+            140,
+            330,
+            260
+          ],
+          "texto_literal": "(medido en el dibujo)",
+          "metodo": "vision"
+        },
+        "confianza": "media"
+      },
+      "alto_techo_ft": {
+        "valor": 9,
+        "fuente": {
+          "pagina": 2,
+          "bbox": [
+            72,
+            330,
+            180,
+            342
+          ],
+          "texto_literal": "ALTO DE TECHO 9'-0\"",
+          "metodo": "tabla_pdf"
+        },
+        "confianza": "alta"
+      },
+      "acabados": {
+        "piso": "LVP",
+        "zocalo": "Madera 4\"",
+        "muros": "Pintura",
+        "techo": "Drywall pintado"
+      }
+    },
+    {
+      "nombre": "EJEMPLO Cocina",
+      "numero": "102",
+      "area_sf": {
+        "valor": 120,
+        "fuente": {
+          "pagina": 1,
+          "bbox": [
+            340,
+            140,
+            450,
+            250
+          ],
+          "texto_literal": "(medido en el dibujo)",
+          "metodo": "vision"
+        },
+        "confianza": "baja"
+      },
+      "perimetro_lf": {
+        "valor": 44,
+        "fuente": {
+          "pagina": 1,
+          "bbox": [
+            340,
+            140,
+            450,
+            250
+          ],
+          "texto_literal": "(medido en el dibujo)",
+          "metodo": "vision"
+        },
+        "confianza": "baja"
+      },
+      "alto_techo_ft": {
+        "valor": 9,
+        "fuente": {
+          "pagina": 2,
+          "bbox": [
+            72,
+            350,
+            180,
+            362
+          ],
+          "texto_literal": "ALTO DE TECHO 9'-0\"",
+          "metodo": "tabla_pdf"
+        },
+        "confianza": "alta"
+      },
+      "acabados": {
+        "piso": "Tile",
+        "zocalo": "Tile 4\"",
+        "muros": "Pintura",
+        "techo": "Drywall pintado"
+      }
+    }
+  ],
+  "conteos": [
+    {
+      "tipo": "Puerta",
+      "marca": "D1",
+      "cantidad": {
+        "valor": 6,
+        "fuente": {
+          "pagina": 2,
+          "bbox": [
+            400,
+            310,
+            470,
+            322
+          ],
+          "texto_literal": "D1 ... 6",
+          "metodo": "tabla_pdf"
+        },
+        "confianza": "alta"
+      },
+      "detalle": "EJEMPLO: puerta interior 3'-0\""
+    },
+    {
+      "tipo": "Ventana",
+      "marca": "W2",
+      "cantidad": {
+        "valor": 4,
+        "fuente": {
+          "pagina": 1,
+          "bbox": [
+            100,
+            80,
+            160,
+            100
+          ],
+          "texto_literal": "W2",
+          "metodo": "vision"
+        },
+        "confianza": "media"
+      },
+      "detalle": "EJEMPLO: ventana fija"
+    }
+  ],
+  "muros": [
+    {
+      "tipo": "EJEMPLO Muro interior tipo A",
+      "lf": {
+        "valor": 180,
+        "fuente": {
+          "pagina": 1,
+          "bbox": [
+            60,
+            120,
+            480,
+            280
+          ],
+          "texto_literal": "(suma de tramos medidos)",
+          "metodo": "vision"
+        },
+        "confianza": "media"
+      },
+      "alto_ft": {
+        "valor": 9,
+        "fuente": {
+          "pagina": 2,
+          "bbox": [
+            72,
+            330,
+            180,
+            342
+          ],
+          "texto_literal": "ALTO 9'-0\"",
+          "metodo": "texto_pdf"
+        },
+        "confianza": "alta"
+      },
+      "capas": "1 capa de drywall 1/2\" por cada lado"
+    }
+  ],
+  "partidas_sugeridas": [
+    {
+      "oficio": "pintura",
+      "cantidad": {
+        "valor": 1560,
+        "fuente": {
+          "pagina": 2,
+          "bbox": [
+            72,
+            380,
+            300,
+            392
+          ],
+          "texto_literal": "MUROS A PINTAR",
+          "metodo": "supuesto"
+        },
+        "confianza": "media"
+      },
+      "unidad": "sf",
+      "formula": "lf de muros x alto - puertas y ventanas",
+      "partida_id": "pint-int-paredes",
+      "insumos": [
+        {
+          "nombre": "Pintura",
+          "unidad": "gal",
+          "cantidad": {
+            "valor": 9,
+            "fuente": {
+              "pagina": 2,
+              "bbox": [
+                72,
+                400,
+                300,
+                412
+              ],
+              "texto_literal": "COBERTURA 375 SF/GAL x 2 MANOS",
+              "metodo": "supuesto"
+            },
+            "confianza": "media"
+          }
+        }
+      ]
+    },
+    {
+      "oficio": "drywall",
+      "cantidad": {
+        "valor": 1620,
+        "fuente": {
+          "pagina": 2,
+          "bbox": [
+            72,
+            420,
+            300,
+            432
+          ],
+          "texto_literal": "DRYWALL 1620 SF",
+          "metodo": "tabla_pdf"
+        },
+        "confianza": "alta"
+      },
+      "unidad": "sf",
+      "formula": "lf de muros x alto x 2 lados",
+      "partida_id": "dw-colgar",
+      "insumos": []
+    },
+    {
+      "oficio": "pisos",
+      "cantidad": {
+        "valor": 288,
+        "fuente": {
+          "pagina": 1,
+          "bbox": [
+            210,
+            140,
+            450,
+            260
+          ],
+          "texto_literal": "(suma de areas de cuartos)",
+          "metodo": "vision"
+        },
+        "confianza": "baja"
+      },
+      "unidad": "sf",
+      "formula": "area sala + area cocina",
+      "partida_id": "piso-lvp",
+      "insumos": []
+    }
+  ],
+  "supuestos": [
+    "EJEMPLO: se descontaron puertas y ventanas con el area estandar del catalogo.",
+    "EJEMPLO: la escala de la hoja A2.2 no esta indicada."
+  ],
+  "dudas": [
+    "EJEMPLO: la cocina lleva tile o LVP? El cuadro de acabados no es claro."
+  ]
+}

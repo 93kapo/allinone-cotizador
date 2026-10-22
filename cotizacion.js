@@ -9,13 +9,14 @@ import {
   markupPctDesdeMargenBp, montosHitos, anticipoExcede10, snapshotCatalogo, aCentavos, BP,
 } from './engine.js';
 import { generarPdfCliente, generarPdfInterno } from './pdf.js';
+import { pasoCantidades } from './licitaciones-cantidades.js';
 
 const PASOS = ['client', 'rooms', 'review', 'pdf'];
 
 export async function pantallaCotizacion({ shell, id, paso }) {
   const q = await store.getCotizacion(id);
   if (!q) return shell(t('ui.error'), aviso('err', t('quote.notFound')), '#/');
-  const paso0 = PASOS.includes(paso) ? paso : 'client';
+  const paso0 = PASOS.includes(paso) || paso === 'cantidades' ? paso : 'client';
   let timer;
   const guardarYa = async () => { clearTimeout(timer); try { await store.saveCotizacion(q); guardadoOk(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
   const guardar = () => { clearTimeout(timer); timer = setTimeout(guardarYa, 350); };
@@ -26,7 +27,7 @@ export async function pantallaCotizacion({ shell, id, paso }) {
     clear(body);
     add(body, h('div', { class: 'steps', role: 'tablist' }, PASOS.map((p, i) =>
       h('button', { role: 'tab', 'aria-current': p === paso0 ? 'step' : null, onclick: () => { guardarYa().then(() => { location.hash = `#/cot/${id}/${p}`; }); } }, `${i + 1}. ${t('step.' + p)}`))));
-    ({ client: pasoCliente, rooms: pasoCuartos, review: pasoRevision, pdf: pasoPdf })[paso0]();
+    ({ client: pasoCliente, rooms: pasoCuartos, review: pasoRevision, pdf: pasoPdf, cantidades: () => pasoCantidades({ body, ent: q, tipo: 'cot', guardar, guardarYa }) })[paso0]();
   };
 
   // ---------- Paso 1: cliente ----------
@@ -273,6 +274,7 @@ export async function pantallaCotizacion({ shell, id, paso }) {
 
   shell(q.cliente.nombre || q.numero, h('div', {},
     h('div', { class: 'row', style: 'margin-bottom:8px' }, h('a', { href: '#/', class: 'btn ghost' }, '← ' + t('nav.home')),
-      h('a', { href: `#/planos/${id}`, class: 'btn' }, t('quote.openPlans'))), body), '#/');
+      h('a', { href: `#/planos/${id}`, class: 'btn' }, t('quote.openPlans')),
+      h('a', { href: `#/cot/${id}/cantidades`, class: 'btn', id: 'link-cantidades' }, t('cant.openFromQuote'))), body), '#/');
   render();
 }

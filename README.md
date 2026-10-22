@@ -52,4 +52,40 @@ Nueva pestaña **Licitaciones** para preparar propuestas a contratistas generale
 - **Borradores** (`bids-drafts.js`, EN/ES): intención de cotizar, envío de propuesta (breakouts y total, **sin costos ni margen**) y RFI. Asunto y cuerpo editables; *Copiar*, *Abrir en mi correo* (`mailto:`; algunos clientes de correo truncan cuerpos largos y no adjuntan archivos) y *Generar PDF* (propuesta sin costos; el PDF INTERNO con costos y margen es aparte). Firmante, correo y licencia salen de **Ajustes**; si faltan aparece `[COMPLETAR]` y el correo queda bloqueado hasta completarlos o confirmar. Nunca se menciona licencia ni seguro que no estén escritos en Ajustes.
 - **Cargar ejemplo:** crea un proyecto marcado EJEMPLO (Publix - Tower Square, Gainesville) con cifras de prueba; el correo y el teléfono directo del contacto se dejan vacíos.
 - **Datos:** colección `licitaciones` (IndexedDB v2 en modo local; Firestore con las mismas reglas de los 3 correos, ver `firestore.rules`). Entra en el respaldo JSON (los respaldos viejos sin ella se siguen importando).
-- **Pruebas:** `npm test` (parser, ajuste de alcance, costeo/breakouts y borradores/bloqueos además de las del motor). Service worker `cotizador-v1.1.0`.
+- **Pruebas:** `npm test` (parser, ajuste de alcance, costeo/breakouts y borradores/bloqueos además de las del motor). Service worker `cotizador-v1.4.0`.
+
+
+## PWA / Cloudflare (v1.4.0)
+`manifest.webmanifest` usa `start_url` y `scope` `./`. El service worker devuelve el shell cacheado de `./` para navegaciones sin conexión, y al precachear **re-empaqueta** cualquier respuesta con `redirected` (Cloudflare redirige `/index.html` a `/`; una respuesta redirigida no puede servir una navegación). El precache es atómico (si un archivo falla, el SW nuevo no se instala). Al añadir un `.js` nuevo hay que añadirlo a `SHELL` en `sw.js`: `tests/sw.test.js` falla si falta.
+
+## Accesibilidad y lenguaje (Fase 1)
+- Base `html{font-size:18px}`; texto nunca menor a 14px; etiquetas >= 16px; botones >= 48px (principales 56px) con 8px de separación; foco visible; `prefers-reduced-motion` respetado; movimiento solo `opacity`/`transform` de 250-300 ms. Contraste: principal >= 7:1 y secundario >= 4.5:1 (comprobado en `tests/contraste.test.js`; texto sobre teal `#38C0D9` es tinta oscura `#0B2329`, nunca blanco).
+- Textos en español sin jerga (breakout->desglose, burden->cargas del empleado, overhead->gastos fijos del negocio, markup/margen->ganancia, precio piso->precio mínimo, takeoff->cantidades, scope->trabajo incluido, GC->contratista general, bid->invitación a cotizar, Costeo->Costos). `tests/lenguaje.test.js` lo vigila; el glosario de excepciones (con motivo) está en ese archivo. La fórmula de margen no cambió: en pantalla se explica "De cada $100 que cobra, le quedan $X". El inglés técnico del PDF en inglés se conserva.
+- Pestaña inferior: la sección se llama **Ofertas** (corto para caber a 14px+); su pantalla se titula "Ofertas: invitaciones a cotizar".
+- "Guardado ✓" en el encabezado tras guardar; al borrar una línea/partida/cuarto/medida/desglose aparece **Deshacer** 10 s (sin diálogos). Borrar una cotización o licitación completa sigue pidiendo confirmación.
+
+## Cantidades del plano (esquema JSON v1)
+Preparación para que el análisis de planos se haga **fuera** de la app (p. ej. con Claude): la app solo **revisa**. No hay todavía script de extracción de PDF. Módulo puro: `plan-cantidades.js` (tests en `tests/plan-cantidades.test.js`). Pantalla: paso **Cantidades** de una oferta, y "Cantidades del plano" dentro de una cotización.
+
+```
+{ "version": 1,
+  "plano":   { "archivo", "sha256" (64 hex), "revision", "fecha", "addenda" },
+  "hojas":   [ { "pagina", "numero", "titulo", "escala_texto", "escala_verificada": bool } ],
+  "cuartos": [ { "nombre", "numero", "area_sf": V, "perimetro_lf": V, "alto_techo_ft": V,
+                 "acabados": { "piso", "zocalo", "muros", "techo" } } ],
+  "conteos": [ { "tipo", "marca", "cantidad": V, "detalle" } ],
+  "muros":   [ { "tipo", "lf": V, "alto_ft": V, "capas" } ],
+  "partidas_sugeridas": [ { "oficio", "cantidad": V, "unidad", "formula", "partida_id"?, "insumos": [ { "nombre", "unidad", "cantidad": V } ] } ],
+  "supuestos": [ "texto" ], "dudas": [ "texto" ] }
+
+V = { "valor": numero >= 0,
+      "fuente": { "pagina": entero, "bbox": [x0,y0,x1,y1] (puntos PDF, >= 0), "texto_literal": "...",
+                  "metodo": "texto_pdf" | "tabla_pdf" | "vision" | "medido_humano" | "supuesto" },
+      "confianza": "alta" | "media" | "baja" }
+```
+- **Qué lleva V:** cada cantidad medible (areas, perimetros, alturas, conteos, largos, cantidades de partidas e insumos). No llevan fuente los metadatos del documento (`version`, `hojas[].pagina`, `fuente.pagina`, `bbox`).
+- **Unidades:** `ft²`, `sf` (alias de ft²), `lf`, `ft`, `ea`, `gal`, `hoja`, `asig.`, `h`, `ud` (las del catálogo de `defaults.js`). `partida_id` (opcional) enlaza con una partida del catálogo; si existe y la unidad coincide, el motor (`engine.js`) calcula el costo; si no, la línea es libre con costos en $0 (no se inventan precios).
+- **Validador** (`validar`): errores `{ruta, codigo, args, mensaje_es}` en español (cada código tiene texto ES/EN en `i18n.js`); rechaza negativos, NaN/Infinity, números como texto, números sueltos sin fuente, `bbox`/método/confianza/unidad inválidos y versión distinta de 1. Advertencias: página sin hoja y lectura de imagen/medida a mano sobre una hoja con escala no verificada.
+- **Aprobación:** todo empieza *pendiente*. `requiere_aprobacion` = confianza media/baja, método `supuesto`, o lectura por imagen en hoja sin escala verificada. "Aprobar todas las de confianza alta" **nunca** toca las que requieren aprobación. `aprobar(item, quien, cuando)`; `corregir(...)` guarda `valor_original`, marca `medido_humano` y **anula la aprobación previa** (la pantalla la vuelve a aprobar con el nuevo valor). **Solo las partidas aprobadas entran al precio** (`lineasDesdeItems`/`calcularPartida`): lo pendiente, aunque sea de confianza alta, no entra; volver a pulsar "Usar cantidades aprobadas" actualiza (no duplica) por `origenItemId`.
+- **Ejemplo:** `plan-cantidades-ejemplo.js` (botón "Cargar ejemplo", funciona sin conexión) y `tests/fixtures/plan-cantidades-EJEMPLO.json` (idéntico; un test lo comprueba). Todo ficticio y marcado EJEMPLO.
+- **Dónde se guarda:** el JSON revisado queda dentro de la oferta/cotización (`cantidades`; IndexedDB en modo local o Firestore), **sin el PDF**. Los PDF y JSON de planos reales nunca van al repositorio (`.gitignore`).
