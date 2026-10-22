@@ -10,12 +10,14 @@ import { pantallaCotizacion } from './cotizacion.js';
 import { pantallaPlanos } from './planos.js';
 import { pantallaPrecios } from './precios.js';
 import { pantallaAjustes } from './ajustes.js';
+import { pantallaLicitaciones } from './licitaciones.js';
 
 const root = document.getElementById('app');
 const ICONS = {
   home: '<path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
   plan: '<path d="M4 4h16v16H4zM4 10h16M10 4v16" fill="none" stroke="currentColor" stroke-width="2"/>',
   tag: '<path d="M3 12V3h9l9 9-9 9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/>',
+  bid: '<path d="M6 3h9l4 4v14H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h6" fill="none" stroke="currentColor" stroke-width="2"/>',
   gear: '<circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" stroke="currentColor" stroke-width="2"/>',
 };
 const icon = (k) => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = ICONS[k]; return s; };
@@ -31,7 +33,7 @@ function shell(titulo, contenido, seccion) {
       S.modo === 'local' ? h('div', { class: 'banner local', role: 'status' }, h('b', {}, t('ui.localBanner')), h('span', {}, t('ui.localBannerHint'))) : null,
       contenido),
     h('nav', { class: 'bar', 'aria-label': t('ui.nav') },
-      ...[['#/', 'home', t('nav.home')], ['#/planos', 'plan', t('nav.plans')], ['#/precios', 'tag', t('nav.prices')], ['#/ajustes', 'gear', t('nav.settings')]]
+      ...[['#/', 'home', t('nav.home')], ['#/licitaciones', 'bid', t('nav.bids')], ['#/planos', 'plan', t('nav.plans')], ['#/precios', 'tag', t('nav.prices')], ['#/ajustes', 'gear', t('nav.settings')]]
         .map(([href, ic, txt]) => h('a', { href, 'aria-current': seccion === href ? 'page' : null }, icon(ic), txt))));
   window.scrollTo(0, 0);
 }
@@ -106,6 +108,7 @@ async function ruta() {
   const [, a, b, c] = hash.split('/');
   try {
     if (a === 'cot' && b) return await pantallaCotizacion({ shell, id: b, paso: c });
+    if (a === 'licitaciones') return await pantallaLicitaciones({ shell, id: b, paso: c });
     if (a === 'planos') return await pantallaPlanos({ shell, id: b });
     if (a === 'precios') return await pantallaPrecios({ shell });
     if (a === 'ajustes') return await pantallaAjustes({ shell });

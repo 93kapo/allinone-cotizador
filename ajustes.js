@@ -29,7 +29,7 @@ export async function pantallaAjustes({ shell }) {
   shell(t('nav.settings'), h('div', {},
     h('h1', {}, t('nav.settings')),
     aviso('warn', t('legal.disclaimer')),
-    h('div', { class: 'card stack' }, h('h2', {}, t('set.company')), E(t('set.coName'), 'nombre'), E(t('set.phone'), 'telefono', 'tel'), E(t('set.email'), 'email', 'email'), E(t('set.license'), 'licencia'), E(t('set.address'), 'direccion')),
+    h('div', { class: 'card stack' }, h('h2', {}, t('set.company')), E(t('set.coName'), 'nombre'), E(t('set.phone'), 'telefono', 'tel'), E(t('set.email'), 'email', 'email'), E(t('set.license'), 'licencia'), E(t('set.address'), 'direccion'), E(t('set.signer'), 'firmante'), E(t('set.insurance'), 'seguro'), h('p', { class: 'muted' }, t('set.signerHint'))),
     h('div', { class: 'card stack' }, h('h2', {}, t('set.costs')),
       P(t('set.salesTax'), 'impuestoVentasBp', t('set.salesTaxHint')),
       P(t('set.burden'), 'burdenBp', t('set.burdenHint')),

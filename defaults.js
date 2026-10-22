@@ -95,6 +95,7 @@ export function ajustesIniciales() {
     empresa: {
       nombre: 'All In One Painting & Remodeling Group LLC',
       telefono: '904-855-9635', email: '', licencia: '', direccion: 'Jacksonville, FL',
+      firmante: '', seguro: '', // firmante de las licitaciones; seguro: solo se menciona si se escribe aquí
     },
     impuestoVentasBp: 750,       // Duval 7.5% = 6% estatal + 1.5% local
     burdenBp: 3000,              // 30% FICA + seguros + workers comp

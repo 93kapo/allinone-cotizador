@@ -3,16 +3,18 @@
 import { tr } from './i18n.js';
 import { usd, cargarScript, JSPDF_URL, urlADataUrl, num } from './util.js';
 import { montosHitos, anticipoExcede10, esPre1978, markupPctReal } from './engine.js';
+import { formatoFechaLimite, lineaAMotor } from './bids-calc.js';
+import { nombresOficios } from './bids-drafts.js';
 
 const TEAL = [56, 192, 217], SLATE = [78, 124, 133], INK = [18, 51, 58], GRAY = [90, 100, 105];
 
-async function nuevoDoc() {
+export async function nuevoDoc() {
   await cargarScript(JSPDF_URL);
   const { jsPDF } = window.jspdf;
   return new jsPDF({ unit: 'mm', format: 'letter', compress: true });
 }
 
-class Cursor {
+export class Cursor {
   constructor(doc, onPage) { this.doc = doc; this.y = 18; this.m = 16; this.W = doc.internal.pageSize.getWidth(); this.H = doc.internal.pageSize.getHeight(); this.onPage = onPage; }
   get w() { return this.W - 2 * this.m; }
   need(h) { if (this.y + h > this.H - 18) { this.doc.addPage(); this.y = 18; this.onPage?.(); } }
@@ -53,7 +55,7 @@ function nombreLinea(l, cat, lang) {
 }
 const etiquetaCuarto = (q, id) => (q.cuartos || []).find((c) => c.id === id)?.nombre || '';
 
-function encabezado(doc, c, logo, aj, titulo, subt) {
+export function encabezado(doc, c, logo, aj, titulo, subt) {
   const e = aj.empresa;
   if (logo) doc.addImage(logo, 'PNG', c.m - 4, 8, 34, 34);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...INK);
@@ -67,7 +69,7 @@ function encabezado(doc, c, logo, aj, titulo, subt) {
   if (subt) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...GRAY); doc.text(subt, c.m, c.y); c.y += 5; }
   c.rule();
 }
-function pie(doc, texto) {
+export function pie(doc, texto) {
   const n = doc.getNumberOfPages(), W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
   for (let i = 1; i <= n; i++) {
     doc.setPage(i); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...GRAY);
@@ -179,4 +181,66 @@ export async function generarPdfInterno(q, calc, aj, cat) {
   c.text(tr(lang, 'pdf.snapshot', q.snapshot?.fecha?.slice(0, 10) || ''), { size: 8, color: GRAY });
   pie(doc, tr(lang, 'pdf.internalFooter'));
   return doc;
+}
+
+// ---------------- Licitaciones ----------------
+/** Deja solo caracteres que jsPDF (fuentes estándar, WinAnsi) dibuja bien: guiones/comillas tipográficas -> ASCII. */
+export function pdfTxt(x) {
+  return String(x ?? '').replace(/[\u2010-\u2015\u2212]/g, '-').replace(/[\u2018\u2019\u201A\u2032]/g, "'").replace(/[\u201C\u201D\u201E\u2033]/g, '"')
+    .replace(/[\u2022\u00B7\u25AA\u2023]/g, '-').replace(/\u2026/g, '...').replace(/[^\n\u0020-\u007E\u00A1-\u00FF]/g, '?');
+}
+
+/** PDF de la PROPUESTA a la licitación. Sin costos, margen ni markup: solo precios de venta. res = calcularBid(bid). */
+export async function generarPdfBid(bid, res, aj, lang = 'en') {
+  const doc = await nuevoDoc();
+  const logo = await urlADataUrl('icons/logo-pdf.png').catch(() => null);
+  const c = new Cursor(doc);
+  const T = (x) => pdfTxt(x);
+  const hoy = new Date();
+  encabezado(doc, c, logo, aj, tr(lang, 'bid.pdf.title'), `${tr(lang, 'pdf.date')}: ${fmtFecha(hoy, lang)}`);
+  c.text(tr(lang, 'bid.pdf.submittedTo'), { size: 9, color: GRAY, gap: 0.5 });
+  c.text(T(bid.gc || '-'), { size: 12, bold: true, gap: 0.5 });
+  for (const l of [bid.contacto && `${tr(lang, 'bid.pdf.attn')} ${bid.contacto}`, bid.telefono, bid.email]) if (l) c.text(T(l), { gap: 0.3 });
+  c.y += 3;
+  c.text(tr(lang, 'bid.pdf.project'), { size: 9, color: GRAY, gap: 0.5 });
+  c.text(T(bid.proyecto || '-'), { size: 12, bold: true, gap: 0.5 });
+  const dir = [bid.direccion, bid.ciudad, [bid.estadoUS, bid.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  if (dir) c.text(T(dir), { gap: 0.3 });
+  if (bid.fechaLimite) c.text(`${tr(lang, 'bid.pdf.due')}: ${formatoFechaLimite(bid.fechaLimite)}`, { size: 9, color: GRAY, gap: 0.3 });
+  c.y += 3;
+
+  const wP = 34, wD = c.w - wP;
+  c.h2(tr(lang, res.hayDesglose ? 'bid.pdf.breakdown' : 'bid.pdf.price'));
+  c.row([{ t: tr(lang, 'pdf.item'), w: wD }, { t: tr(lang, 'pdf.price'), w: wP, align: 'right' }], { bold: true, size: 9, color: GRAY });
+  if (res.hayDesglose) for (const g of res.grupos) c.row([{ t: T(g.id === null ? tr(lang, 'bid.d.proposal.general') : g.nombre), w: wD }, { t: usd(g.precio), w: wP, align: 'right' }]);
+  c.rule(SLATE);
+  c.row([{ t: tr(lang, 'pdf.total'), w: wD }, { t: usd(res.total), w: wP, align: 'right' }], { bold: true, size: 13 });
+  c.y += 2;
+
+  const of = nombresOficios(bid, lang);
+  if (of.length) { c.h2(tr(lang, 'bid.pdf.scope')); for (const x of of) c.text('- ' + T(x), { gap: 0.4 }); }
+  const q = bid.calif || {};
+  const bloques = [['bid.d.proposal.incl', q.inclusiones], ['bid.d.proposal.excl', q.exclusiones], ['bid.d.proposal.assum', q.supuestos], ['bid.d.proposal.addenda', q.addenda]]
+    .filter(([, v]) => String(v ?? '').trim());
+  if (bloques.length) c.h2(tr(lang, 'bid.pdf.qualifications'));
+  for (const [k, v] of bloques) { c.text(tr(lang, k).replace(/:$/, ''), { bold: true, gap: 0.6 }); c.text(T(String(v).trim())); }
+  c.y += 1;
+  c.text(tr(lang, 'bid.d.proposal.valid', parseInt(q.validezDias) || aj.validezDias || 30), { size: 9, color: GRAY });
+
+  c.need(40); c.y += 8;
+  doc.setDrawColor(...INK); doc.setLineWidth(0.3);
+  doc.line(c.m, c.y, c.m + 80, c.y);
+  c.y += 4;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
+  const e = aj.empresa || {};
+  doc.text(T([e.firmante, e.nombre].filter(Boolean).join(' - ')), c.m, c.y);
+  pie(doc, T(`${e.nombre || ''}  |  ${bid.proyecto || ''}`).slice(0, 110));
+  return doc;
+}
+
+/** Resumen INTERNO de la licitación (costos y margen). Reutiliza generarPdfInterno; siempre en español. */
+export async function generarPdfBidInterno(bid, res, aj) {
+  const q = { numero: 'LIC', cliente: { nombre: pdfTxt(bid.proyecto) }, snapshot: bid.snapshot,
+    lineas: res.lineas.map((x) => { const m = lineaAMotor(x.linea); if (m.personalizada && x.linea.nombre) m.personalizada.nombre = x.linea.nombre; return m; }) };
+  return generarPdfInterno(q, res.calc, { ...bid.snapshot.ajustes, empresa: aj.empresa }, bid.snapshot.catalogo);
 }

@@ -5,7 +5,7 @@
 import { firebaseConfig, firebaseConfigurado, FIREBASE_VERSION } from './firebase-config.js';
 import { catalogoInicial, ajustesIniciales } from './defaults.js';
 
-const DB_NAME = 'cotizador-allinone', DB_VER = 1;
+const DB_NAME = 'cotizador-allinone', DB_VER = 2; // v2: agrega el almacén 'licitaciones' (onupgradeneeded crea lo que falte, sin tocar lo existente)
 let _db;
 function abrirIDB() {
   if (_db) return _db;
@@ -13,7 +13,7 @@ function abrirIDB() {
     const r = indexedDB.open(DB_NAME, DB_VER);
     r.onupgradeneeded = () => {
       const d = r.result;
-      for (const s of ['kv', 'cotizaciones', 'planos']) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s);
+      for (const s of ['kv', 'cotizaciones', 'planos', 'licitaciones']) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s);
     };
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
@@ -49,6 +49,10 @@ const local = {
   async obtener(id) { return idbGet('cotizaciones', id); },
   async guardar(q) { await idbPut('cotizaciones', q.id, q); },
   async borrar(id) { await idbDel('cotizaciones', id); },
+  async listarLic() { return (await idbAll('licitaciones')).sort((a, b) => (b.actualizado || '').localeCompare(a.actualizado || '')); },
+  async obtenerLic(id) { return idbGet('licitaciones', id); },
+  async guardarLic(b) { await idbPut('licitaciones', b.id, b); },
+  async borrarLic(id) { await idbDel('licitaciones', id); },
 };
 
 // ---------------- Backend Firestore ----------------
@@ -67,6 +71,14 @@ const nube = {
   async obtener(id) { const s = await fb.m.getDoc(fb.m.doc(fb.db, 'cotizaciones', id)); return s.exists() ? s.data() : undefined; },
   async guardar(q) { await fb.m.setDoc(fb.m.doc(fb.db, 'cotizaciones', q.id), JSON.parse(JSON.stringify(q))); },
   async borrar(id) { await fb.m.deleteDoc(fb.m.doc(fb.db, 'cotizaciones', id)); },
+  // Colección 'licitaciones' (mismas reglas de acceso que el resto: ver firestore.rules)
+  async listarLic() {
+    const s = await fb.m.getDocs(fb.m.collection(fb.db, 'licitaciones'));
+    return s.docs.map((d) => d.data()).sort((a, b) => (b.actualizado || '').localeCompare(a.actualizado || ''));
+  },
+  async obtenerLic(id) { const s = await fb.m.getDoc(fb.m.doc(fb.db, 'licitaciones', id)); return s.exists() ? s.data() : undefined; },
+  async guardarLic(b) { await fb.m.setDoc(fb.m.doc(fb.db, 'licitaciones', b.id), JSON.parse(JSON.stringify(b))); },
+  async borrarLic(id) { await fb.m.deleteDoc(fb.m.doc(fb.db, 'licitaciones', id)); },
 };
 
 let backend = local;
@@ -111,6 +123,10 @@ export const listarCotizaciones = () => backend.listar();
 export const getCotizacion = (id) => backend.obtener(id);
 export const saveCotizacion = (q) => { q.actualizado = new Date().toISOString(); return backend.guardar(q); };
 export const borrarCotizacion = (id) => backend.borrar(id);
+export const listarLicitaciones = () => backend.listarLic();
+export const getLicitacion = (id) => backend.obtenerLic(id);
+export const saveLicitacion = (b) => { b.actualizado = new Date().toISOString(); return backend.guardarLic(b); };
+export const borrarLicitacion = (id) => backend.borrarLic(id);
 
 // PDFs de planos: solo IndexedDB local
 export const guardarPlanoPdf = (id, buf) => idbPut('planos', id, buf);
@@ -121,7 +137,7 @@ export const borrarPlanoPdf = (id) => idbDel('planos', id);
 export async function exportarRespaldo() {
   return JSON.stringify({
     app: 'cotizador-allinone', version: 1, fecha: new Date().toISOString(),
-    ajustes: await getAjustes(), catalogo: await getCatalogo(), cotizaciones: await listarCotizaciones(),
+    ajustes: await getAjustes(), catalogo: await getCatalogo(), cotizaciones: await listarCotizaciones(), licitaciones: await listarLicitaciones(),
   }, null, 1);
 }
 export async function importarRespaldo(texto) {
@@ -129,5 +145,6 @@ export async function importarRespaldo(texto) {
   if (d.app !== 'cotizador-allinone' || !Array.isArray(d.cotizaciones)) throw new Error('Archivo de respaldo no válido');
   await saveAjustes(d.ajustes); await saveCatalogo(d.catalogo);
   for (const q of d.cotizaciones) await backend.guardar(q);
-  return d.cotizaciones.length;
+  for (const b of Array.isArray(d.licitaciones) ? d.licitaciones : []) await backend.guardarLic(b); // respaldos viejos no la traen
+  return d.cotizaciones.length + (Array.isArray(d.licitaciones) ? d.licitaciones.length : 0);
 }

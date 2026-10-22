@@ -13,6 +13,10 @@ service cloud.firestore {
           'hijo@EJEMPLO.com'
         ];
     }
+    // Licitaciones (bids): mismas reglas que todo lo demás (solo los 3 correos verificados).
+    match /licitaciones/{id} {
+      allow read, write: if permitido();
+    }
     match /{document=**} {
       allow read, write: if permitido();
     }

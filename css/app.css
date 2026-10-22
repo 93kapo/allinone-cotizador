@@ -66,4 +66,16 @@ tr.tot td{font-weight:700;border-top:2px solid var(--ink)}
 .sr{position:absolute;left:-9999px}
 .muted{color:var(--muted);font-size:.85rem}.right{text-align:right}.mt{margin-top:12px}
 .login{max-width:420px;margin:8vh auto;padding:0 14px}
+/* --- Licitaciones --- */
+.badge.venc{background:var(--err-bg);border-color:#f1a29b;color:#7a1209}.badge.vig{background:var(--ok-bg);border-color:#7ad3a8;color:#05422e}
+.badge.ejemplo{background:var(--warn-bg);border-color:#F5C451;color:#5c2d00}
+.badge.est-ganada{background:var(--ok-bg);border-color:#7ad3a8}.badge.est-perdida,.badge.est-descartada{background:#eceff0;border-color:#c5d0d3;color:var(--muted)}.badge.est-enviada{background:#E8E5FB;border-color:#c0b8f0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.chip{display:inline-block;font:inherit;font-size:.8rem;font-weight:600;min-height:0;padding:4px 10px;border-radius:99px;border:1.5px solid var(--line);background:#fff;color:var(--ink);max-width:100%;overflow-wrap:anywhere;text-align:left}
+button.chip{min-height:36px;cursor:pointer}
+.chip.ok{background:var(--ok-bg);border-color:#7ad3a8;color:#05422e}.chip.ok.off{background:#fff;border-color:var(--line);color:var(--muted);text-decoration:line-through}
+.chip.out{background:var(--err-bg);border-color:#f1a29b;color:#7a1209}.chip.unk{background:#eceff0;border-color:#c5d0d3;color:var(--muted);font-weight:400}
+.kpi.sem-verde{background:var(--ok-bg)}.kpi.sem-ambar{background:var(--warn-bg)}.kpi.sem-rojo{background:var(--err-bg)}
+.razones{margin:0;padding-left:1.2em;font-size:.85rem;color:#7a1209}
+.item .main .sub{overflow-wrap:anywhere}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}.spin{animation:none;border-top-color:var(--line)}}

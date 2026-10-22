@@ -51,3 +51,18 @@ export function add(el, ...kids) {
   for (const c of kids.flat(Infinity)) if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(c));
   return el;
 }
+
+/** Copia al portapapeles. navigator.clipboard solo existe en contexto seguro (https/localhost): si no, usa execCommand. */
+export async function copiarTexto(texto) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(texto); return true; }
+  } catch { /* cae al respaldo */ }
+  const ta = h('textarea', { 'aria-hidden': 'true', style: 'position:fixed;left:-9999px;top:0;opacity:0' });
+  ta.value = texto;
+  document.body.append(ta);
+  ta.focus(); ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch { ok = false; }
+  ta.remove();
+  return ok;
+}
