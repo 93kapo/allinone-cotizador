@@ -2,7 +2,7 @@
 // solo arma texto que la persona revisa, copia o abre en su propio cliente de correo.
 // Los borradores jamás incluyen costos internos, margen ni markup.
 import { tr } from './i18n.js';
-import { analizarAlcance, nombreOficio } from './bids-fit.js';
+import { analizarAlcance, nombreOficio, OFICIOS } from './bids-fit.js';
 import { formatoFechaLimite } from './bids-calc.js';
 import { puedeGenerarPdf } from './engine.js';
 
@@ -28,6 +28,11 @@ const saludo = (lang, contacto) => {
   return n ? tr(lang, 'bid.d.hello', n) : tr(lang, 'bid.d.helloGen');
 };
 const lugar = (bid) => [bid.direccion, bid.ciudad, [bid.estadoUS, bid.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+/** Oficios que de verdad tienen líneas con precio en la oferta (lo que la propuesta dice haber cotizado). */
+export function oficiosCotizados(bid, lang) {
+  const keys = [...new Set((bid.lineas || []).map((l) => l.oficio))];
+  return OFICIOS.filter((o) => keys.includes(o.key)).map((o) => nombreOficio(o, lang));
+}
 export const nombresOficios = (bid, lang) => analizarAlcance(bid.alcance).relevantes
   .filter((r) => (bid.oficiosExcluidos || []).indexOf(r.key) < 0).map((r) => nombreOficio(r, lang));
 
@@ -53,10 +58,10 @@ export function construirBorrador({ tipo, lang = 'en', bid, ajustes, resumen, rf
     L.push(tr(lang, 'bid.d.proposal.breakdown'));
     const total = resumen && resumen.total > 0 ? usdTxt(resumen.total) : MARCADOR;
     if (resumen && resumen.hayDesglose) {
-      for (const g of resumen.grupos) L.push('- ' + (g.id === null ? tr(lang, 'bid.d.proposal.general') : g.nombre) + ': ' + usdTxt(g.precio));
+      for (const g of resumen.grupos) L.push('- ' + (g.id === null ? tr(lang, 'bid.d.proposal.general') : g.nombre) + ': ' + (g.lineas ? usdTxt(g.precio) : tr(lang, 'bid.d.proposal.nobid')));
     }
     L.push(tr(lang, 'bid.d.proposal.total') + ': ' + total);
-    const of = nombresOficios(bid, lang);
+    const of = oficiosCotizados(bid, lang);
     if (of.length) L.push('', tr(lang, 'bid.d.proposal.scope', of.join('; ')));
     const c = bid.calif || {};
     for (const [k, txt] of [['bid.d.proposal.incl', c.inclusiones], ['bid.d.proposal.excl', c.exclusiones], ['bid.d.proposal.assum', c.supuestos], ['bid.d.proposal.addenda', c.addenda]]) {

@@ -172,9 +172,8 @@ async function pantallaEditor({ shell, id, paso }) {
         h('div', { class: 'item' }, h('div', { class: 'main' }, h('b', {}, bid.proyecto || t('bid.noName')), h('span', { class: 'sub' }, bid.gc || '')),
           h('div', { class: 'right' }, bid.ejemplo ? h('span', { class: 'badge ejemplo' }, t('bid.example')) : null)),
         h('div', { class: 'row', style: 'align-items:center' }, e.badge, h('span', { class: 'muted' }, bid.fechaLimite ? `${formatoFechaLimite(bid.fechaLimite)} · ${e.texto}` : t('bid.noDate'))),
-        selectField(t('bid.state'), ESTADOS.map((s) => [s, t('bidstate.' + s)]), bid.estado, (v) => { bid.estado = v; guardar(); })),
-      e.v.vencida ? h('div', { class: 'banner err', role: 'alert' }, h('b', {}, t('bid.expiredBanner')), ' ', t('bid.expiredBannerHint')) : null,
-      bid.ejemplo ? aviso('warn', t('bid.exampleNote')) : null);
+        ),
+      e.v.vencida ? h('div', { class: 'banner err', role: 'alert' }, h('b', {}, t('bid.expiredBanner')), ' ', t('bid.expiredBannerHint')) : null);
   };
   const render = () => {
     clear(body);
@@ -188,7 +187,9 @@ async function pantallaEditor({ shell, id, paso }) {
   function pasoDatos() {
     const ajuste = panelAjuste(bid, guardar);
     add(body,
+      bid.ejemplo ? aviso('warn', t('bid.exampleNote')) : null,
       h('div', { class: 'card stack' }, h('h2', {}, t('bidstep.datos')),
+        selectField(t('bid.state'), ESTADOS.map((s) => [s, t('bidstate.' + s)]), bid.estado, (v) => { bid.estado = v; guardar(); }),
         formDatos(bid, { onChange: (k) => { if (k === 'alcance') ajuste.pintar(); if (k === 'fechaLimite' || k === 'proyecto' || k === 'gc') pintarCab(); guardar(); } }),
         field({ label: t('bid.f.notes'), area: true, value: bid.notas || '', onInput: (v) => { bid.notas = v; guardar(); } })),
       h('div', { class: 'card stack' }, h('h2', {}, t('bid.fit.title')), ajuste.el),

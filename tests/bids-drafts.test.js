@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { catalogoInicial, ajustesIniciales } from '../defaults.js';
 import { bidEjemplo } from '../bids-ejemplo.js';
 import { calcularBid, vencimiento, formatoFechaLimite, fechaLimiteADate, semaforo, lineaAMotor } from '../bids-calc.js';
-import { construirBorrador, bloqueos, armarMailto, datosFirma, contarMarcadores, hayFuga, MARCADOR, TIPOS } from '../bids-drafts.js';
+import { oficiosCotizados, construirBorrador, bloqueos, armarMailto, datosFirma, contarMarcadores, hayFuga, MARCADOR, TIPOS } from '../bids-drafts.js';
 import { calcularCotizacion, TEXTO_CONFIRMACION } from '../engine.js';
 import { dict } from '../i18n.js';
 
@@ -124,4 +124,23 @@ test('i18n: claves dinámicas de licitaciones existen en es y en', () => {
     ...TIPOS.map((x) => 'bidtype.' + x), ...['nuevo', 'interesado', 'cotizando', 'borrador', 'enviada', 'ganada', 'perdida', 'descartada'].map((x) => 'bidstate.' + x),
     ...['datos', 'costos', 'borradores'].map((x) => 'bidstep.' + x), ...['incl', 'excl', 'assum', 'addenda'].map((x) => 'bid.d.proposal.' + x), 'bid.pdf.price', 'bid.pdf.breakdown'];
   for (const k of ks) { assert.ok(k in dict.es, k); assert.ok(k in dict.en, k); }
+});
+
+test('propuesta: breakouts sin líneas dicen "Not bid"/"Sin cotizar" (nunca $0.00) y el alcance lista solo lo cotizado', () => {
+  const b = mk(); const r = calcularBid(b); const aj = ajConFirma();
+  const en = construirBorrador({ tipo: 'proposal', lang: 'en', bid: b, ajustes: aj, resumen: r }).cuerpo;
+  const es = construirBorrador({ tipo: 'proposal', lang: 'es', bid: b, ajustes: aj, resumen: r }).cuerpo;
+  assert.ok(en.includes('- Site work: Not bid')); assert.ok(es.includes('- Site work: Sin cotizar'));
+  assert.ok(!/\$0\.00/.test(en));
+  assert.deepEqual(oficiosCotizados(b, 'en'), ['Paints and coatings', 'Gypsum drywall', 'Hard tile']);
+  assert.ok(!en.includes('Electrical'));
+});
+test('ejemplo: marcado EJEMPLO, sin correo ni teléfono directo, nota de cifras de prueba', () => {
+  const b = mk();
+  assert.equal(b.ejemplo, true); assert.equal(b.email, '');
+  assert.ok(b.notas.includes('cifras de prueba'));
+  assert.equal((JSON.stringify({ ...b, snapshot: null }).match(/\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/g) || []).length, 1); // solo el teléfono de la invitación; ningún otro número directo
+  assert.ok(!/@/.test(JSON.stringify(b.contacto + b.email)));
+  assert.equal(b.telefono, '(770) 751-5463 x1163');
+  assert.equal(b.breakouts.length, 6);
 });

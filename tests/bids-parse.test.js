@@ -34,8 +34,8 @@ test('parser: correo por regex y proyecto en la línea siguiente', () => {
   assert.equal(r.contacto, 'Ana Ruiz');
   assert.equal(r.telefono, '904.555.0100');
 });
-test('parser: no inventa el teléfono directo ni el correo del manager (fixture sin ellos)', () => {
-  assert.ok(!FIX.includes('713-8866'));
+test('parser: el fixture no trae correo ni un segundo teléfono (solo el de la invitación)', () => {
+  assert.equal((FIX.match(/\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/g) || []).length, 1);
   assert.ok(!/@/.test(FIX));
 });
 test('fechas: formatos M-D-YYYY h:mm AM/PM, 12 AM/PM, sin hora, inválidas', () => {

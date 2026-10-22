@@ -4,7 +4,7 @@ import { tr } from './i18n.js';
 import { usd, cargarScript, JSPDF_URL, urlADataUrl, num } from './util.js';
 import { montosHitos, anticipoExcede10, esPre1978, markupPctReal } from './engine.js';
 import { formatoFechaLimite, lineaAMotor } from './bids-calc.js';
-import { nombresOficios } from './bids-drafts.js';
+import { oficiosCotizados } from './bids-drafts.js';
 
 const TEAL = [56, 192, 217], SLATE = [78, 124, 133], INK = [18, 51, 58], GRAY = [90, 100, 105];
 
@@ -212,12 +212,12 @@ export async function generarPdfBid(bid, res, aj, lang = 'en') {
   const wP = 34, wD = c.w - wP;
   c.h2(tr(lang, res.hayDesglose ? 'bid.pdf.breakdown' : 'bid.pdf.price'));
   c.row([{ t: tr(lang, 'pdf.item'), w: wD }, { t: tr(lang, 'pdf.price'), w: wP, align: 'right' }], { bold: true, size: 9, color: GRAY });
-  if (res.hayDesglose) for (const g of res.grupos) c.row([{ t: T(g.id === null ? tr(lang, 'bid.d.proposal.general') : g.nombre), w: wD }, { t: usd(g.precio), w: wP, align: 'right' }]);
+  if (res.hayDesglose) for (const g of res.grupos) c.row([{ t: T(g.id === null ? tr(lang, 'bid.d.proposal.general') : g.nombre), w: wD }, { t: g.lineas ? usd(g.precio) : tr(lang, 'bid.d.proposal.nobid'), w: wP, align: 'right' }]);
   c.rule(SLATE);
   c.row([{ t: tr(lang, 'pdf.total'), w: wD }, { t: usd(res.total), w: wP, align: 'right' }], { bold: true, size: 13 });
   c.y += 2;
 
-  const of = nombresOficios(bid, lang);
+  const of = oficiosCotizados(bid, lang);
   if (of.length) { c.h2(tr(lang, 'bid.pdf.scope')); for (const x of of) c.text('- ' + T(x), { gap: 0.4 }); }
   const q = bid.calif || {};
   const bloques = [['bid.d.proposal.incl', q.inclusiones], ['bid.d.proposal.excl', q.exclusiones], ['bid.d.proposal.assum', q.supuestos], ['bid.d.proposal.addenda', q.addenda]]
