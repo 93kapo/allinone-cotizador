@@ -18,3 +18,4 @@ serviceAccount*.json
 firebase-debug.log
 node_modules/
 .DS_Store
+_site/
