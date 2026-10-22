@@ -49,3 +49,13 @@ test('fit: límites de palabra (paint no dentro de otra palabra)', () => {
   assert.deepEqual(keys(analizarAlcance('repainting paintball').relevantes), []);
   assert.ok(dict.es['bid.fit.sub'] && dict.en['bid.fit.sub']);
 });
+
+test('fit: alcance extraído del fixture real -> oficios propios y fuera de alcance', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { parsearInvitacion } = await import('../bids-parse.js');
+  const r = analizarAlcance(parsearInvitacion(readFileSync(new URL('./fixtures/invitacion-publix-real.txt', import.meta.url), 'utf8')).alcance);
+  assert.deepEqual(keys(r.relevantes), ['carpentry', 'drywall', 'electrical', 'flooring', 'paint', 'tile']);
+  assert.deepEqual(r.relevantes.flatMap((x) => x.coincidencias).sort(), ['electrical', 'finish carpentry', 'gypsum drywall', 'hard tile', 'millwork', 'paints and coatings', 'resilient flooring']);
+  for (const k of ['earthwork', 'steel', 'plumbing', 'hvac', 'fire', 'roofing', 'concrete', 'demolition', 'roughcarp']) assert.ok(keys(r.fuera).includes(k), k);
+  assert.equal(r.veredicto, 'sub');
+});

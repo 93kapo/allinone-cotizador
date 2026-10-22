@@ -53,3 +53,45 @@ test('dirección: con y sin coma', () => {
   assert.deepEqual(parseDireccion('100 Main St, Jacksonville, FL 32202-1234'), { direccion: '100 Main St', ciudad: 'Jacksonville', estadoUS: 'FL', zip: '32202' });
   assert.deepEqual(parseDireccion('Calle sin formato'), { direccion: 'Calle sin formato', ciudad: '', estadoUS: '', zip: '' });
 });
+
+// --- Formato real de la página (etiqueta y valor en líneas separadas) ---
+const REAL = readFileSync(new URL('./fixtures/invitacion-publix-real.txt', import.meta.url), 'utf8');
+test('parser real: etiqueta/valor en líneas separadas extrae todos los campos', () => {
+  const r = parsearInvitacion(REAL);
+  assert.equal(r.proyecto, 'PUBLIX - TOWER SQUARE - GAINESVILLE, FL');
+  assert.equal(r.gc, 'Example Construction, Inc.');
+  assert.equal(r.contacto, 'Alex Contact');
+  assert.equal(r.telefono, '(555) 010-0100 x1000');
+  assert.equal(r.telefonoContacto, '555-010-0200');
+  assert.equal(r.email, 'contact@example.com');
+  assert.equal(r.direccion, '5801 SW 75th Street');
+  assert.equal(r.ciudad, 'Gainesville'); assert.equal(r.estadoUS, 'FL'); assert.equal(r.zip, '32608');
+  assert.equal(r.fechaLimite, '2026-10-19T14:00');
+  assert.equal(r.inicioEst, '2027-02-05'); assert.equal(r.finEst, '2028-02-29');
+  for (const k of ['proyecto', 'gc', 'contacto', 'telefono', 'email', 'direccion', 'ciudad', 'estadoUS', 'zip', 'fechaLimite', 'inicioEst', 'finEst', 'alcance', 'breakouts']) assert.ok(r.encontrados.includes(k), k);
+});
+test('parser real: alcance completo (Project Description hasta el desglose) y sin ruido de UI', () => {
+  const r = parsearInvitacion(REAL);
+  assert.match(r.alcance, /^4093 - Publix/);
+  assert.match(r.alcance, /Scope includes, but not limited to, site demolition/);
+  assert.match(r.alcance, /HVAC, electrical, fire alarm\./);
+  assert.match(r.alcance, /normal business hours\.$/);
+  assert.ok(!/Please provide the following cost breakout/i.test(r.alcance));
+  assert.ok(!/OPEN PLAN ROOM|VIEW MAP|View More|Plan Room|Takeoff|NO INFORMATION/i.test(r.alcance));
+  for (const k of Object.keys(r)) if (typeof r[k] === 'string') assert.ok(!/GENERAL CONTRACTOR|^MANAGER$|Due Date:|Zip:/.test(r[k]), 'etiqueta como valor en ' + k);
+});
+test('parser real: 6 breakouts con su nota', () => {
+  const r = parsearInvitacion(REAL);
+  assert.deepEqual(r.breakouts, BREAKOUTS_EJEMPLO);
+  assert.match(r.breakoutsNota, /^Please provide the following cost breakout/);
+  assert.match(r.breakoutsNota, /Please also provide a total/);
+});
+test('parser real: el fixture redactado no trae datos de contacto reales', () => {
+  assert.deepEqual(REAL.match(/[\w.+-]+@[\w-]+\.com/g), ['contact@example.com']);
+  assert.ok(!/Farrell|Larkin|770/.test(REAL));
+});
+test('parser: etiquetas vacías seguidas de otra etiqueta no se toman como valor', () => {
+  const r = parsearInvitacion('Architect:\nOwner:\nPhone:\nFax:\nAddress:\n100 Main St\nCity & State :\nOrlando,FL\nZip:\n32801');
+  assert.equal(r.telefono, ''); assert.equal(r.direccion, '100 Main St');
+  assert.equal(r.ciudad, 'Orlando'); assert.equal(r.estadoUS, 'FL'); assert.equal(r.zip, '32801');
+});
