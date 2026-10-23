@@ -35,3 +35,17 @@ test('lenguaje: explicación de la ganancia en pantalla y aviso del mínimo (ES 
   assert.equal(dict.es['bidstep.costos'], 'Costos');
   assert.equal(dict.es['ui.saved'], 'Guardado ✓');
 });
+
+// --- Fase 1A: "Ofertas/Licitaciones" ahora es "Proyectos potenciales" (no son descuentos) ---
+test('lenguaje: la pestaña y la pantalla se llaman Proyectos potenciales / Potential projects', () => {
+  for (const k of ['nav.bids', 'nav.bidsShort', 'bid.title']) {
+    assert.equal(dict.es[k], 'Proyectos potenciales', k);
+    assert.equal(dict.en[k], 'Potential projects', k);
+  }
+  assert.match(dict.es['bid.help'], /No son descuentos/);
+  assert.match(dict.en['bid.help'], /not discounts/);
+});
+test('lenguaje: ninguna cadena en español habla de "ofertas" ni "licitaciones" (puede leerse como descuento)', () => {
+  const malas = Object.entries(dict.es).filter(([, v]) => /\bofert(?:a|as|ar)\b|licitaci/i.test(v)).map(([k, v]) => `${k}: ${v}`);
+  assert.deepEqual(malas, []);
+});

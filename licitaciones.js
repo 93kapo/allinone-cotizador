@@ -66,6 +66,7 @@ async function pantallaLista({ shell }) {
   };
   shell(t('nav.bids'), h('div', {},
     h('h1', {}, t('bid.title')),
+    h('p', { class: 'muted' }, t('bid.help')),
     aviso('info', h('b', {}, t('bid.neverSends')), ' ', t('bid.neverSendsHint')),
     h('div', { class: 'row' },
       h('a', { href: '#/licitaciones/nueva', class: 'btn primary' }, '+ ' + t('bid.paste')),
