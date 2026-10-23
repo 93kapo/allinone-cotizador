@@ -249,7 +249,7 @@ export async function generarPdfOrdenTrabajo(q, R, aj, lang = 'en') {
   for (const x of alcancePintura(q, lang)) T('- ' + x, { gap: 0.8 });
   T(tr(lang, 'pint.ord.materials'), { gap: 1 });
   const pl = R.planA;
-  T(pl.incompleto ? tr(lang, 'pint.ord.timeTbd') : tr(lang, 'pint.ord.time', pl.probable.dias, pl.personas));
+  T(pl.incompleto ? tr(lang, 'pint.ord.timeTbd') : tr(lang, 'pint.ord.time', pl.probable.dias, pl.efectivas));
   c.h2(tr(lang, 'pint.ord.payment'));
   const wV = 40, wD = c.w - wV, fila = (k, v, o) => c.row([{ t: pdfTxt(k), w: wD }, { t: pdfTxt(v), w: wV, align: 'right' }], o);
   fila(tr(lang, 'pint.ord.hours'), `${n1(A.horasAcordadas)} h`);
