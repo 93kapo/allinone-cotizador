@@ -421,6 +421,7 @@ const es = {
   'trash.restore': 'Recuperar',
 
   // --- Fase 1B: flujo guiado de pintura ---
+  'pint.s.keepLabel': 'Le quedan de cada $100',
   'nav.advanced': 'Cotización avanzada',
   'home.newPaint': 'Nueva cotización de pintura',
   'home.newPaintShort': 'Nueva cotización de pintura',
@@ -1177,6 +1178,7 @@ const en = {
   'trash.restore': 'Recover',
 
   // --- Phase 1B: guided painting flow ---
+  'pint.s.keepLabel': 'You keep of every $100',
   'nav.advanced': 'Advanced quote',
   'home.newPaint': 'New painting quote',
   'home.newPaintShort': 'New painting quote',

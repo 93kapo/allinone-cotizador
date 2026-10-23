@@ -174,3 +174,4 @@ button.origen{font-size:1rem;padding:6px 12px;min-height:48px;border-color:#6f8d
 .precio-barra .precio-num{font-size:1.15rem}
 .precio-barra .estado-sem{font-weight:600}
 @media (max-width:260px){.precio-barra{position:static;max-width:none}}
+.sheet .banner,.toast{font-size:1rem}

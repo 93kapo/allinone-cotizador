@@ -46,7 +46,7 @@ const etiqueta = (txt) => h('p', { class: 'etq' }, txt);
 const estTag = () => h('span', { class: 'est' }, t('pint.estimated'));
 function grupoChips(label, opciones, valor, onElegir) {
   return h('div', { role: 'group', 'aria-label': label }, etiqueta(label),
-    h('div', { class: 'chips grandes' }, opciones.map(([v, txt]) => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(valor) === String(v) ? 'true' : 'false', onclick: () => onElegir(v) }, txt))));
+    h('div', { class: 'chips grandes' }, opciones.map(([v, txt]) => h('button', { type: 'button', class: 'chip', 'data-k': `${label}|${v}`, 'aria-pressed': String(valor) === String(v) ? 'true' : 'false', onclick: () => onElegir(v) }, txt))));
 }
 /** "de dónde sale": hoja con la fuente del dato. info = { nombre, url?, estimado?, derivada?, nota? } */
 function botonOrigen(info) {
@@ -126,7 +126,14 @@ export async function pantallaPintura({ shell, id, paso }) {
   const cuerpo = h('div', { class: 'pasocuerpo' });
   let vivos = [];
   const viva = (fn, cls) => { const c = h('div', cls ? { class: cls } : {}); const run = () => { clear(c); add(c, fn()); }; vivos.push(run); run(); return c; };
-  const refrescar = () => vivos.forEach((f) => f());
+  /** Repintar sin perder el foco: el control enfocado (por id o data-k) se vuelve a enfocar después. */
+  const conFoco = (fn) => {
+    const a = document.activeElement;
+    const k = a && cuerpo.contains(a) ? (a.id ? `[id="${a.id}"]` : a.dataset?.k ? `[data-k="${CSS.escape(a.dataset.k)}"]` : null) : null;
+    fn();
+    if (k) cuerpo.querySelector(k)?.focus({ preventScroll: true });
+  };
+  const refrescar = () => conFoco(() => vivos.forEach((f) => f()));
   /** Un cambio: recalcula, regenera las líneas, guarda y actualiza la barra. estructural = hay que redibujar el paso (cambia qué campos hay). */
   function cambio(estructural = false) {
     sincronizar(); guardar(); pintarBarra();
@@ -135,9 +142,11 @@ export async function pantallaPintura({ shell, id, paso }) {
   const irA = (n) => guardarYa().then(() => { location.hash = `#/pintura/${id}/${n}`; });
   function render() {
     const y = window.scrollY;
-    clear(cuerpo); vivos = [];
-    ({ 1: paso1, 2: paso2, 3: paso3, 4: paso4, 5: paso5 })[p0]();
-    add(cuerpo, navegacion());
+    conFoco(() => {
+      clear(cuerpo); vivos = [];
+      ({ 1: paso1, 2: paso2, 3: paso3, 4: paso4, 5: paso5 })[p0]();
+      add(cuerpo, navegacion());
+    });
     window.scrollTo(0, y);
   }
   const navegacion = () => h('div', { class: 'row mt navpaso' },
@@ -319,14 +328,12 @@ export async function pantallaPintura({ shell, id, paso }) {
           nota(t('pint.h.factorRange')),
           campoPct(t('pint.h.contPct'), P.horas.contPct, (v) => { P.horas.contPct = v || 0; cambio(); }, { hint: t('pint.h.contHint') })));
     };
-    const horasElegir = h('div', {});
-    const pintarElegir = () => {
-      clear(horasElegir);
+    const horasElegir = viva(() => {
       const H = R.horas.sinContingencia;
-      add(horasElegir, grupoChips(t('pint.h.pick'), [['minimo', `${t('pint.low')} ${num1(H.minimo)} h`], ['probable', `${t('pint.likely')} ${num1(H.probable)} h`], ['maximo', `${t('pint.high')} ${num1(H.maximo)} h`], ['otro', t('pint.other')]],
-        P.horas.eleg, (v) => { P.horas.eleg = v; cambio(true); }),
-      P.horas.eleg === 'otro' ? campoNum(t('pint.h.otherHours'), P.horas.horasOtro, (v) => { P.horas.horasOtro = v; cambio(); }) : null);
-    };
+      return [grupoChips(t('pint.h.pick'), [['minimo', `${t('pint.low')} ${num1(H.minimo)} h`], ['probable', `${t('pint.likely')} ${num1(H.probable)} h`], ['maximo', `${t('pint.high')} ${num1(H.maximo)} h`], ['otro', t('pint.other')]],
+        P.horas.eleg, (v) => { P.horas.eleg = v; cambio(); }),
+      P.horas.eleg === 'otro' ? campoNum(t('pint.h.otherHours'), P.horas.horasOtro, (v) => { P.horas.horasOtro = v; cambio(); }) : null];
+    });
     // ----- cuadrilla -----
     const cuadrillaOut = viva(() => {
       const pl = R.planA, plB = R.planB;
@@ -344,10 +351,10 @@ export async function pantallaPintura({ shell, id, paso }) {
         R.secado.dias > 0 ? h('p', { class: 'muted' }, t('pint.c.dry', R.secado.dias)) : null);
     });
     const cuadrillaCard = h('section', { class: 'card stack' }, h('h2', {}, t('pint.c.title')),
-      grupoChips(t('pint.c.people'), [1, 2, 3, 4, 5, 6].map((n) => [n, String(n)]), P.cuadrilla.personas, (v) => { P.cuadrilla.personas = Number(v); cambio(true); }),
-      campoNum(t('pint.c.peopleOther'), P.cuadrilla.personas, (v) => { P.cuadrilla.personas = v ? Math.round(v) : null; cambio(true); }, { step: '1', min: '1' }),
-      grupoChips(t('pint.c.hoursDay'), [6, 8, 10].map((n) => [n, `${n} h`]), P.cuadrilla.horasDia, (v) => { P.cuadrilla.horasDia = Number(v); cambio(true); }),
-      campoNum(t('pint.c.hoursOther'), P.cuadrilla.horasDia, (v) => { P.cuadrilla.horasDia = v || null; cambio(true); }),
+      viva(() => grupoChips(t('pint.c.people'), [1, 2, 3, 4, 5, 6].map((n) => [n, String(n)]), P.cuadrilla.personas, (v) => { P.cuadrilla.personas = Number(v); cambio(); })),
+      campoNum(t('pint.c.peopleOther'), P.cuadrilla.personas, (v) => { P.cuadrilla.personas = v ? Math.round(v) : null; cambio(); }, { step: '1', min: '1' }),
+      viva(() => grupoChips(t('pint.c.hoursDay'), [6, 8, 10].map((n) => [n, `${n} h`]), P.cuadrilla.horasDia, (v) => { P.cuadrilla.horasDia = Number(v); cambio(); })),
+      campoNum(t('pint.c.hoursOther'), P.cuadrilla.horasDia, (v) => { P.cuadrilla.horasDia = v || null; cambio(); }),
       cuadrillaOut,
       h('details', { class: 'det' }, h('summary', {}, t('pint.c.edit')),
         h('div', { class: 'stack' },
@@ -399,8 +406,8 @@ export async function pantallaPintura({ shell, id, paso }) {
         R.equilibrio.tipo === 'horas' ? aviso('info', t('pint.a.breakeven', num1(R.equilibrio.horas))) : R.equilibrio.tipo === 'siempreSub' ? aviso('info', t('pint.a.alwaysSub')) : aviso('info', t('pint.a.noBreakeven')));
     });
     const aCard = h('section', { class: 'card stack' }, h('h2', {}, t('pint.a.title')), nota(t('pint.a.sub')),
-      grupoChips(t('pint.a.rate'), D.TARIFAS_SUB.map((c) => [c, usd(c) + '/h']), P.A.tarifaCents, (v) => { P.A.tarifaCents = Number(v); cambio(true); }),
-      campoDinero(t('pint.a.rateOther'), P.A.tarifaCents, (v) => { P.A.tarifaCents = v || 0; cambio(true); }),
+      viva(() => grupoChips(t('pint.a.rate'), D.TARIFAS_SUB.map((c) => [c, usd(c) + '/h']), P.A.tarifaCents, (v) => { P.A.tarifaCents = Number(v); cambio(); })),
+      campoDinero(t('pint.a.rateOther'), P.A.tarifaCents, (v) => { P.A.tarifaCents = v || 0; cambio(); }),
       horasElegir, aOut,
       fila(campoNum(t('pint.sv.hours'), P.superv.horas, (v) => { P.superv.horas = v; cambio(); }, { hint: t('pint.sv.hint') }), campoDinero(t('pint.sv.rate'), P.superv.tarifaCents, (v) => { P.superv.tarifaCents = v; cambio(); })),
       campoPct(t('pint.a.insurance'), P.A.seguroBp == null ? null : P.A.seguroBp / 100, (v) => { P.A.seguroBp = v == null ? null : Math.round(v * 100); cambio(); }, { hint: t('pint.a.insuranceHint') }),
@@ -449,8 +456,6 @@ export async function pantallaPintura({ shell, id, paso }) {
         h('div', { class: 'dato' }, estTag(), botonOrigen({ nombre: t('pint.mat.defaultsSource'), estimado: true }))),
       h('section', { class: 'card stack' }, h('h2', {}, t('pint.ctl.title')), nota(t('pint.ctl.sub')), controlOut),
       aCard, bCard);
-    pintarElegir();
-    vivos.push(pintarElegir);
     pintarBarra();
   }
 
@@ -477,7 +482,7 @@ export async function pantallaPintura({ shell, id, paso }) {
         h('p', {}, t('pint.g.suggested', pct1(Ex.sug.minBp), pct1(Ex.sug.maxBp), t(`pint.g.size.${Ex.sug.id}`)), ' ', botonOrigen({ nombre: t('pint.g.suggestedSource'), estimado: true })),
         Ex.sug.debajoDelMinimo ? aviso('warn', t('pint.g.sugBelowFloor', pct1(R.pisoBp))) : null,
         Ex.faltan.length ? aviso('warn', t('pint.g.incomplete', Ex.faltan.map((k) => t(`pint.missing.${k}`)).join(', '))) : null,
-        h('button', { type: 'button', class: elegido ? 'primary' : '', 'aria-pressed': elegido ? 'true' : 'false', onclick: () => { P.escenario = K; cambio(true); } }, elegido ? '✓ ' + t('pint.g.chosen') : t('pint.g.choose')));
+        h('button', { type: 'button', id: `usar-${K}`, class: elegido ? 'primary' : '', 'aria-pressed': elegido ? 'true' : 'false', onclick: () => { P.escenario = K; cambio(true); } }, elegido ? '✓ ' + t('pint.g.chosen') : t('pint.g.choose')));
     });
     const desglose = viva(() => {
       const Ex = E(), fi = (k, v, cls) => h('tr', { class: cls }, h('td', {}, k), h('td', { class: 'r' }, usd(v)));
@@ -534,7 +539,7 @@ export async function pantallaPintura({ shell, id, paso }) {
       const sumaOk = (q.hitosBp || aj.hitosBp).reduce((a, b) => a + b, 0) === BP;
       const habilitar = () => !puedeGenerarPdf(Tt.margenBp, aj.margenPisoBp, confirmTxt).ok || !sumaOk;
       add(zona,
-        h('div', { class: 'kpis' }, h('div', { class: 'kpi' }, h('small', {}, t('pdf.price')), h('b', {}, usd(Tt.precio))), h('div', { class: 'kpi sem-' + (barra.dataset.sem === 'rojo' ? 'rojo' : barra.dataset.sem === 'ambar' ? 'ambar' : 'verde') }, h('small', {}, t('pint.bar.keep', '')), h('b', {}, usd(Tt.margenBp)))),
+        h('div', { class: 'kpis' }, h('div', { class: 'kpi' }, h('small', {}, t('pdf.price')), h('b', {}, usd(Tt.precio))), h('div', { class: 'kpi sem-' + (barra.dataset.sem === 'rojo' ? 'rojo' : barra.dataset.sem === 'ambar' ? 'ambar' : 'verde') }, h('small', {}, t('pint.s.keepLabel')), h('b', {}, usd(Tt.margenBp)))),
         e.faltan.length ? aviso('warn', t('pint.g.incomplete', e.faltan.map((k) => t(`pint.missing.${k}`)).join(', '))) : null,
         chk.requiereConfirmacion ? h('div', { class: 'stack' }, aviso('err', h('b', {}, t('pdf.blocked', pct1(Tt.margenBp), pct1(aj.margenPisoBp))), ' ', t('pdf.blockedHint', TEXTO_CONFIRMACION)),
           h('div', {}, h('label', { for: 'confirm-txt' }, t('pdf.confirmLabel')), h('input', { id: 'confirm-txt', value: confirmTxt, placeholder: TEXTO_CONFIRMACION, autocomplete: 'off', oninput: (ev) => {
@@ -592,5 +597,7 @@ export async function pantallaPintura({ shell, id, paso }) {
   shell(q.cliente.nombre || t('pint.title'), h('div', { class: 'pint' }, pasos, cuerpo, barra), '#/');
   render();
   pintarBarra();
+  const h1 = cuerpo.querySelector('h1'); // el foco va al título del paso (lector de pantalla); shell() aún no lo veía
+  if (h1) { h1.setAttribute('tabindex', '-1'); h1.focus({ preventScroll: true }); }
   guardar();
 }
