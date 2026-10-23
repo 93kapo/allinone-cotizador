@@ -59,3 +59,34 @@ test('css: existe prefers-reduced-motion y foco visible; animaciones solo opacit
     assert.ok(!/(width|height|top|left|margin|padding)\s*:/.test(m[2]), `@keyframes ${m[1]} anima algo distinto de opacity/transform`);
   }
 });
+
+// --- Fase 1A: tarjetas de Inicio (letra >= 18px), controles táctiles >= 48px, gesto sin animación con movimiento reducido ---
+const regla = (sel) => reglas.find((r) => r.sel === sel);
+test('css 1A: texto de las tarjetas, avisos y chips grandes de Inicio >= 18px', () => {
+  for (const sel of ['.t-cli', '.t-tot', '.t-res', '.t-est .badge', '.chips.grandes .chip', '.aviso-card b', '.aviso-card span']) {
+    const r = regla(sel) || reglas.find((x) => x.sel.split(',').map((s) => s.trim()).includes(sel));
+    assert.ok(r, 'falta la regla ' + sel);
+    assert.ok(aPx(r.decl['font-size']) >= 18, `${sel}: ${r.decl['font-size']}`);
+  }
+});
+test('css 1A: controles de la lista y de la navegación >= 48px (⋯, Borrar, FAB, Más, enlaces de la barra)', () => {
+  for (const sel of ['button.mas', '.fila-acc button', '.fab', '.masitem', '.aviso-card']) {
+    const r = regla(sel);
+    assert.ok(r, 'falta ' + sel);
+    assert.ok(aPx(r.decl['min-height']) >= 48, `${sel}: ${r.decl['min-height']}`);
+  }
+  assert.ok(aPx(regla('button.mas').decl['min-width']) >= 48);
+  assert.ok(aPx(regla('nav.bar a,nav.bar button.navbtn').decl['min-height']) >= 64);
+  assert.ok(aPx(regla('.fila-acc').decl.width) >= 48);
+});
+test('css 1A: la fila deslizable solo se desplaza en horizontal (touch-action: pan-y) y no anima con movimiento reducido', () => {
+  assert.equal(regla('.fila-cuerpo').decl['touch-action'], 'pan-y');
+  assert.match(css, /prefers-reduced-motion:\s*reduce\)\{\*\{animation:none!important;transition:none!important/);
+  assert.equal(regla('.fila.arr .fila-cuerpo').decl.transition, 'none'); // sin retardo mientras el dedo arrastra
+});
+test('css 1A: el FAB sube con la barra Deshacer (--undo-h) y respeta el área segura; el Deshacer también', () => {
+  assert.match(regla('.fab').decl.bottom, /var\(--undo-h\)/);
+  assert.match(regla('.fab').decl.bottom, /env\(safe-area-inset-bottom\)/);
+  assert.match(regla('.undo-wrap').decl.bottom, /env\(safe-area-inset-bottom\)/);
+  assert.match(regla('body').decl['padding-bottom'], /var\(--undo-h\)/);
+});

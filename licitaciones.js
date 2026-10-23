@@ -4,7 +4,10 @@ import { h, clear, add } from './util.js';
 import { t, getLang } from './i18n.js';
 import { S } from './state.js';
 import * as store from './store.js';
-import { field, selectField, toast, aviso, guardadoOk } from './ui.js';
+import { field, selectField, toast, aviso, guardadoOk, alCambiarDatos, registrarGuardado } from './ui.js';
+import { lista as lista_ } from './lista.js';
+import { borrarSuave, archivarConDeshacer, sacarDelArchivo } from './borrado.js';
+import { puedeBorrar, puedeArchivar, esVisible, estaArchivada } from './papelera.js';
 import { parsearInvitacion } from './bids-parse.js';
 import { analizarAlcance, notaAjuste, nombreOficio } from './bids-fit.js';
 import { bidNuevo, ESTADOS, vencimiento, formatoFechaLimite, aInputLocal } from './bids-calc.js';
@@ -34,31 +37,44 @@ export async function pantallaLicitaciones({ shell, id, paso }) {
 
 // ---------------- Lista ----------------
 async function pantallaLista({ shell }) {
-  const lista = await store.listarLicitaciones();
+  let lista = await store.listarLicitaciones();
   let fEstado = 'todos', fVig = 'todas', orden = 'asc';
   const cont = h('div');
-  const pintar = () => {
+  const accionesDe = (b, repintar) => {
+    if (fEstado === 'archivada') return [{ clave: 'desarchivar', texto: t('lista.desarchivar'), deslizar: true, ejecutar: async () => { await sacarDelArchivo('bid', b); repintar(); } }];
+    const borrable = puedeBorrar('bid', b);
+    const a = [{ clave: 'archivar', texto: t('lista.archivar'), deslizar: !borrable, ejecutar: async () => { await archivarConDeshacer('bid', b); repintar(); } }];
+    if (borrable) a.push({ clave: 'borrar', texto: t('ui.delete'), peligro: true, deslizar: true, ejecutar: async () => { await borrarSuave('bid', b); repintar(); } });
+    return a;
+  };
+  const pintar = (idxFoco) => {
     clear(cont);
     const ahora = new Date();
-    let v = lista.filter((b) => (fEstado === 'todos' || b.estado === fEstado));
+    let v = lista.filter((b) => (fEstado === 'archivada' ? estaArchivada(b) : esVisible(b)) && (fEstado === 'todos' || fEstado === 'archivada' || b.estado === fEstado));
     v = v.filter((b) => { const x = vencimiento(b.fechaLimite, ahora); return fVig === 'todas' || (fVig === 'vencidas' ? x.vencida : fVig === 'vigentes' ? x.tiene && !x.vencida : !x.tiene); });
     const ms = (b) => { const x = vencimiento(b.fechaLimite, ahora); return x.tiene ? x.ms : null; };
     v.sort((a, b) => { const A = ms(a), B = ms(b); if (A == null && B == null) return 0; if (A == null) return 1; if (B == null) return -1; return orden === 'asc' ? A - B : B - A; });
-    if (!v.length) {
-      cont.append(h('div', { class: 'empty card' }, h('p', {}, lista.length ? t('bid.noMatch') : t('bid.empty')), h('p', { class: 'muted' }, lista.length ? '' : t('bid.emptyHint'))));
-      return;
-    }
-    for (const b of v) {
-      const e = etiquetaVencimiento(b.fechaLimite, ahora);
-      cont.append(h('a', { href: `#/licitaciones/${b.id}`, class: 'card item', style: 'text-decoration:none;color:inherit' },
-        h('div', { class: 'main' }, h('b', {}, b.proyecto || t('bid.noName')),
-          h('span', { class: 'sub' }, [b.gc, b.fechaLimite ? `${t('bid.due')}: ${formatoFechaLimite(b.fechaLimite)}` : ''].filter(Boolean).join(' · ')),
-          h('span', { class: 'sub' }, e.v.tiene ? e.texto : '')),
-        h('div', { class: 'right' }, e.badge, h('span', { class: 'badge est-' + b.estado }, t('bidstate.' + b.estado)),
-          b.ejemplo ? h('span', { class: 'badge ejemplo' }, t('bid.example')) : null)));
-    }
+    const hay = lista.some((b) => (fEstado === 'archivada' ? estaArchivada(b) : esVisible(b)));
+    const vacio = h('div', { class: 'empty card' }, h('p', {}, hay ? t('bid.noMatch') : fEstado === 'archivada' ? t('bid.archivedEmpty') : t('bid.empty')), h('p', { class: 'muted' }, hay || fEstado === 'archivada' ? '' : t('bid.emptyHint')));
+    if (v.length) cont.append(h('p', { class: 'muted' }, t('bid.swipeHint')));
+    const el = lista_({
+      items: v, href: (b) => `#/licitaciones/${b.id}`, etiqueta: (b) => b.proyecto || t('bid.noName'), vacio,
+      contenido: (b) => {
+        const e = etiquetaVencimiento(b.fechaLimite, ahora);
+        return [
+          h('b', { class: 't-cli' }, b.proyecto || t('bid.noName')),
+          h('span', { class: 't-res' }, [b.gc, b.fechaLimite ? `${t('bid.due')}: ${formatoFechaLimite(b.fechaLimite)}` : ''].filter(Boolean).join(' · ')),
+          h('span', { class: 't-res' }, e.v.tiene ? e.texto : ''),
+          h('div', { class: 't-est' }, e.badge, h('span', { class: 'badge est-' + b.estado }, t('bidstate.' + b.estado)), b.ejemplo ? h('span', { class: 'badge ejemplo' }, t('bid.example')) : null)];
+      },
+      acciones: (b) => accionesDe(b, () => { const i = v.indexOf(b); pintar(i); }),
+      nota: (b) => (puedeBorrar('bid', b) || fEstado === 'archivada' ? '' : t('lista.noBorrarBid')),
+    });
+    cont.append(el);
+    if (idxFoco != null) el.enfocar(idxFoco);
   };
   pintar();
+  alCambiarDatos(async () => { lista = await store.listarLicitaciones(); pintar(); });
   const cargarEjemplo = async () => {
     const b = bidEjemplo({ id: store.nuevoId(), ids: store.nuevoId, ajustes: S.ajustes, catalogo: S.catalogo });
     await store.saveLicitacion(b);
@@ -72,7 +88,7 @@ async function pantallaLista({ shell }) {
       h('a', { href: '#/licitaciones/nueva', class: 'btn primary' }, '+ ' + t('bid.paste')),
       h('button', { onclick: () => cargarEjemplo().catch((e) => toast(t('ui.error') + ': ' + e.message, 'err')) }, t('bid.loadExample'))),
     h('div', { class: 'row mt' },
-      selectField(t('bid.filterState'), [['todos', t('home.all')], ...ESTADOS.map((e) => [e, t('bidstate.' + e)])], fEstado, (x) => { fEstado = x; pintar(); }),
+      selectField(t('bid.filterState'), [['todos', t('home.all')], ...ESTADOS.map((e) => [e, t('bidstate.' + e)]), ['archivada', t('bid.archivedState')]], fEstado, (x) => { fEstado = x; pintar(); }),
       selectField(t('bid.filterVig'), [['todas', t('home.all')], ['vigentes', t('bid.active')], ['vencidas', t('bid.expired')], ['sin', t('bid.noDate')]], fVig, (x) => { fVig = x; pintar(); }),
       selectField(t('bid.sort'), [['asc', t('bid.sortAsc')], ['desc', t('bid.sortDesc')]], orden, (x) => { orden = x; pintar(); })),
     h('div', { class: 'mt' }, cont),
@@ -161,9 +177,11 @@ async function pantallaEditor({ shell, id, paso }) {
   const bid = await store.getLicitacion(id);
   if (!bid) return shell(t('ui.error'), aviso('err', t('bid.notFound404')), '#/licitaciones');
   const p0 = PASOS.includes(paso) ? paso : 'datos';
-  let timer;
-  const guardarYa = async () => { clearTimeout(timer); try { await store.saveLicitacion(bid); guardadoOk(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
-  const guardar = () => { clearTimeout(timer); timer = setTimeout(guardarYa, 350); };
+  let timer, pendiente = false;
+  const guardarYa = async () => { clearTimeout(timer); pendiente = false; try { await store.saveLicitacion(bid); guardadoOk(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
+  const guardar = () => { clearTimeout(timer); pendiente = true; timer = setTimeout(guardarYa, 350); };
+  registrarGuardado(() => { if (pendiente) guardarYa(); }); // pagehide / visibilitychange / cambio de pantalla
+  const salirDe = async (fn) => { clearTimeout(timer); pendiente = false; try { if (await fn()) location.hash = '#/licitaciones'; } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
   const body = h('div');
   const cab = h('div');
   const pintarCab = () => {
@@ -197,7 +215,9 @@ async function pantallaEditor({ shell, id, paso }) {
         field({ label: t('bid.f.notes'), area: true, value: bid.notas || '', onInput: (v) => { bid.notas = v; guardar(); } })),
       h('div', { class: 'card stack' }, h('h2', {}, t('bid.fit.title')), ajuste.el),
       h('button', { class: 'primary block', onclick: () => guardarYa().then(() => { location.hash = `#/licitaciones/${id}/cantidades`; }) }, t('ui.next')),
-      h('button', { class: 'danger block mt', onclick: async () => { if (confirm(t('bid.deleteConfirm'))) { await store.borrarLicitacion(id); location.hash = '#/licitaciones'; } } }, t('bid.delete')));
+      puedeBorrar('bid', bid)
+        ? h('button', { class: 'danger block mt', onclick: () => salirDe(() => borrarSuave('bid', bid)) }, t('bid.delete'))
+        : (puedeArchivar(bid) ? h('div', { class: 'mt' }, h('p', { class: 'muted' }, t('bid.archiveNote')), h('button', { class: 'block', onclick: () => salirDe(() => archivarConDeshacer('bid', bid)) }, t('bid.archive'))) : null));
   }
   shell(bid.proyecto || t('nav.bids'), h('div', {},
     h('div', { class: 'row', style: 'margin-bottom:8px' }, h('a', { href: '#/licitaciones', class: 'btn ghost' }, '← ' + t('nav.bids'))), body), '#/licitaciones');

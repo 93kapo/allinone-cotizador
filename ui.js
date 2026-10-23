@@ -2,6 +2,7 @@
 import { h, usd, pct1 } from './util.js';
 import { t } from './i18n.js';
 import { aCentavos, pctABp } from './engine.js';
+import { crearCola } from './cola.js';
 
 let _id = 0;
 const uid = () => 'f' + ++_id;
@@ -154,3 +155,34 @@ const _flush = new Set();
 export const registrarGuardado = (fn) => { _flush.add(fn); };
 export function flushGuardados() { for (const f of [..._flush]) { try { f(); } catch (e) { console.error(e); } } }
 export function resetGuardados() { flushGuardados(); _flush.clear(); }
+
+/** Cola de "Deshacer" de borrados/archivados de listas: SOBREVIVE a la navegación (trabaja sobre el almacén por id).
+ *  8 segundos por entrada; se pausa mientras la barra tiene el foco o el puntero encima. */
+let _alDatos = null;
+/** La pantalla de lista registra cómo repintarse cuando un Deshacer cambia los datos (se limpia en cada navegación). */
+export const alCambiarDatos = (fn) => { _alDatos = fn; };
+export const colaDeshacer = crearCola({ ms: 8000, alCambiar: () => pintarCola() });
+function pintarCola() {
+  const items = colaDeshacer.items;
+  let el = document.getElementById('undo-cola');
+  if (!items.length) {
+    if (el) { const tenia = el.contains(document.activeElement); el.remove(); medirUndo(); if (tenia) document.getElementById('main')?.focus({ preventScroll: true }); }
+    return;
+  }
+  const u = items[items.length - 1];
+  const txt = items.length > 1 ? t('ui.undoMore', u.msg, items.length - 1) : u.msg;
+  const lab = t('ui.undoLabel', u.etiqueta || u.msg);
+  if (!el) {
+    el = h('div', { class: 'undo', id: 'undo-cola', role: 'status',
+      onfocusin: () => colaDeshacer.pausar(), onfocusout: () => colaDeshacer.reanudar(),
+      onmouseenter: () => colaDeshacer.pausar(), onmouseleave: () => colaDeshacer.reanudar() },
+      h('span', { id: 'undo-cola-txt' }),
+      h('button', { id: 'undo-cola-btn', onclick: async () => { try { await colaDeshacer.deshacer(); _alDatos?.(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } } }, t('ui.undo')));
+    contenedorUndo().prepend(el);
+  }
+  el.querySelector('#undo-cola-txt').textContent = txt;
+  el.querySelector('#undo-cola-btn').setAttribute('aria-label', lab);
+  medirUndo();
+}
+/** Agrega un borrado/archivado a la cola. deshacer(): restaura en el almacén. expirar(): limpieza definitiva (PDF del plano). */
+export function ofrecerDeshacer(o) { return colaDeshacer.agregar(o); }

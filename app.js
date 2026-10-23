@@ -5,12 +5,15 @@ import { S } from './state.js';
 import * as store from './store.js';
 import { calcularCotizacion, contingenciaPorDefecto } from './engine.js';
 import { snapshotCatalogo } from './engine.js';
-import { toast, selectField, field, cerrarDeshacer, sheet, cerrarHojas, resetGuardados } from './ui.js';
+import { toast, selectField, field, cerrarDeshacer, sheet, cerrarHojas, resetGuardados, alCambiarDatos, flushGuardados } from './ui.js';
+import { lista } from './lista.js';
+import { borrarSuave, archivarConDeshacer, sacarDelArchivo } from './borrado.js';
+import { puedeBorrar, enPapelera, filtrarCotizaciones, necesitaAtencion } from './papelera.js';
 import { pantallaCotizacion } from './cotizacion.js';
 import { pantallaPlanos } from './planos.js';
 import { pantallaPrecios } from './precios.js';
 import { pantallaAjustes } from './ajustes.js';
-import { pantallaLicitaciones } from './licitaciones.js';
+import { pantallaLicitaciones, etiquetaVencimiento } from './licitaciones.js';
 
 const root = document.getElementById('app');
 const ICONS = {
@@ -27,14 +30,14 @@ const icon = (k) => { const s = document.createElementNS('http://www.w3.org/2000
 export function navegar(hash) { if (location.hash === hash) ruta(); else location.hash = hash; }
 
 const TITULO_APP = 'Cotizador';
-const SECCIONES_MAS = ['#/planos', '#/precios', '#/ajustes'];
+const SECCIONES_MAS = ['#/planos', '#/precios', '#/ajustes', '#/archivadas'];
 
 /** Hoja "Más": las pantallas que no caben en la barra de 3 pestañas. */
 function abrirMas() {
   const item = (href, ic, txt) => h('a', { href, class: 'btn masitem', onclick: () => sh.close() }, icon(ic), h('span', {}, txt));
   const sh = sheet(t('nav.more'), h('div', { class: 'stack' },
     item('#/planos', 'plan', t('nav.plans')), item('#/precios', 'tag', t('nav.prices')),
-    item('#/ajustes', 'gear', t('nav.settings'))));
+    item('#/archivadas', 'box', t('nav.archived')), item('#/ajustes', 'gear', t('nav.settings'))));
   return sh;
 }
 
@@ -76,28 +79,84 @@ export async function crearCotizacion() {
   return q;
 }
 
-async function inicio() {
-  const lista = await store.listarCotizaciones();
-  let filtro = 'todas';
+async function inicio({ archivadas = false } = {}) {
+  let todas = await store.listarCotizaciones();
+  const bids = archivadas ? [] : await store.listarLicitaciones();
+  let filtro = 'todas', texto = '', modoArch = archivadas;
   const cont = h('div');
-  const pintar = () => {
+  const titulo = h('h1', {}, archivadas ? t('home.archivedTitle') : t('nav.home'));
+  const atencionBox = h('div');
+  const totalDe = (q) => { try { return calcularCotizacion(q).totales.precio; } catch { return 0; } };
+  const resumen = (q) => ((q.cuartos?.length || q.lineas?.length) ? t('home.summary', q.cuartos?.length || 0, q.lineas?.length || 0) : t('home.summaryEmpty'));
+
+  const pintarAtencion = () => {
+    clear(atencionBox);
+    if (modoArch) return;
+    const a = necesitaAtencion({ cots: todas, bids });
+    atencionBox.append(h('h2', { class: 'seccion' }, t('home.attention')));
+    if (!a.bids.length && !a.cots.length) { atencionBox.append(h('p', { class: 'muted' }, t('home.attentionNone'))); return; }
+    for (const { b } of a.bids) atencionBox.append(h('a', { href: `#/licitaciones/${b.id}`, class: 'aviso-card' }, h('b', {}, b.proyecto || t('bid.noName')), h('span', {}, etiquetaVencimiento(b.fechaLimite).texto)));
+    for (const { q, razones } of a.cots) atencionBox.append(h('a', { href: `#/cot/${q.id}`, class: 'aviso-card' }, h('b', {}, q.cliente?.nombre || q.numero || t('home.noName')),
+      h('span', {}, razones.length === 2 ? t('home.needBoth') : razones[0] === 'sinCliente' ? t('home.needName') : t('home.needMeasures'))));
+  };
+
+  const accionesDe = (q, repintar) => {
+    const lista = [];
+    if (modoArch) return [{ clave: 'desarchivar', texto: t('lista.desarchivar'), deslizar: true, ejecutar: async () => { await sacarDelArchivo('cot', q); repintar(); } }];
+    const borrable = puedeBorrar('cot', q);
+    lista.push({ clave: 'archivar', texto: t('lista.archivar'), deslizar: !borrable, ejecutar: async () => { await archivarConDeshacer('cot', q); repintar(); } });
+    if (borrable) lista.push({ clave: 'borrar', texto: t('ui.delete'), peligro: true, deslizar: true, ejecutar: async () => { await borrarSuave('cot', q); repintar(); } });
+    return lista;
+  };
+  const pintar = (idxFoco) => {
     clear(cont);
-    const v = lista.filter((q) => filtro === 'todas' || q.estado === filtro);
-    if (!v.length) { cont.append(h('div', { class: 'empty card' }, h('p', {}, lista.length ? t('home.noMatch') : t('home.empty')), h('p', { class: 'muted' }, t('home.emptyHint')))); return; }
-    for (const q of v) {
-      let tot = 0; try { tot = calcularCotizacion(q).totales.precio; } catch { /* datos incompletos */ }
-      cont.append(h('a', { href: `#/cot/${q.id}`, class: 'card item', style: 'text-decoration:none;color:inherit' },
-        h('div', { class: 'main' }, h('b', {}, q.cliente?.nombre || t('home.noName')), h('span', { class: 'sub' }, `${q.numero} · ${fechaCorta(q.actualizado || q.creado)}`)),
-        h('div', { class: 'right' }, h('b', {}, usd(tot)), h('span', { class: 'badge ' + q.estado }, t('estado.' + q.estado)))));
+    const v = filtrarCotizaciones(todas, { estado: filtro, texto, archivadas: modoArch });
+    const hayAlgo = todas.some((q) => !enPapelera(q) && (modoArch ? q.archivada : true));
+    const vacio = !hayAlgo
+      ? h('div', { class: 'empty card' }, h('p', {}, modoArch ? t('home.archivedEmpty') : t('home.empty')), modoArch ? null : h('p', { class: 'muted' }, t('home.emptyHint')),
+        modoArch ? null : h('button', { class: 'primary', onclick: nueva }, t('home.firstQuote')))
+      : h('div', { class: 'empty card' }, h('p', {}, t('home.noMatch')));
+    if (v.length) cont.append(h('p', { class: 'muted' }, modoArch ? t('home.archivedHint') : t('home.swipeHint')));
+    const el = lista({
+      items: v, href: (q) => `#/cot/${q.id}`, etiqueta: (q) => q.cliente?.nombre || q.numero || t('home.noName'), vacio,
+      contenido: (q) => [
+        h('div', { class: 't-fila' }, h('span', { class: 't-cli' }, q.cliente?.nombre || t('home.noName')), h('span', { class: 't-tot' }, usd(totalDe(q)))),
+        h('span', { class: 't-res' }, resumen(q)),
+        h('div', { class: 't-est' }, h('span', { class: 'badge ' + q.estado }, t('estado.' + q.estado)), h('span', { class: 'muted' }, `${q.numero} · ${fechaCorta(q.actualizado || q.creado)}`))],
+      acciones: (q) => accionesDe(q, () => { const i = v.indexOf(q); pintarAtencion(); pintar(i); }),
+      nota: (q) => (puedeBorrar('cot', q) || modoArch ? '' : t('lista.noBorrarCot')),
+    });
+    cont.append(el);
+    if (idxFoco != null) el.enfocar(idxFoco);
+  };
+  const recargar = async () => { todas = await store.listarCotizaciones(); pintarAtencion(); pintar(); };
+  alCambiarDatos(recargar);
+  const nueva = async () => { const q = await crearCotizacion(); navegar(`#/cot/${q.id}`); };
+
+  const chips = h('div', { class: 'chips grandes', role: 'group', 'aria-label': t('home.statusGroup') });
+  const OPC = [['todas', t('home.all')], ['borrador', t('home.fBorrador')], ['enviada', t('home.fEnviada')], ['aceptada', t('home.fGanada')], ['archivadas', t('home.fArchivadas')]];
+  const pintarChips = () => {
+    clear(chips);
+    for (const [k, txt] of OPC) {
+      const on = k === 'archivadas' ? modoArch : (!modoArch && filtro === k);
+      chips.append(h('button', { type: 'button', class: 'chip', 'aria-pressed': on ? 'true' : 'false', 'data-chip': k,
+        onclick: () => {
+          if (k === 'archivadas') modoArch = true; else { modoArch = false; filtro = k; }
+          titulo.textContent = modoArch ? t('home.archivedTitle') : t('nav.home');
+          pintarChips(); pintarAtencion(); pintar();
+          chips.querySelector(`[data-chip="${k}"]`)?.focus();
+        } }, txt));
     }
   };
-  pintar();
-  const nueva = async () => { const q = await crearCotizacion(); navegar(`#/cot/${q.id}`); };
-  shell(t('nav.home'), h('div', {},
-    h('h1', {}, t('home.title')),
-    selectField(t('home.filter'), [['todas', t('home.all')], ...['borrador', 'enviada', 'aceptada', 'rechazada'].map((e) => [e, t('estado.' + e)])], filtro, (v) => { filtro = v; pintar(); }),
+  pintarChips(); pintarAtencion(); pintar();
+  const busq = h('input', { id: 'buscar', type: 'search', placeholder: t('home.searchPh'), autocomplete: 'off', enterkeyhint: 'search', oninput: (e) => { texto = e.target.value; pintar(); } });
+  shell(t('nav.home'), h('div', { class: 'con-fab' },
+    titulo, atencionBox,
+    h('h2', { class: 'seccion' }, t('home.mine')),
+    h('div', { class: 'buscar' }, h('label', { for: 'buscar' }, t('home.search')), busq),
+    chips,
     h('div', { class: 'mt' }, cont),
-    h('button', { class: 'primary fab', onclick: nueva }, '+ ' + t('home.new'))), '#/');
+    h('button', { class: 'primary fab', onclick: nueva }, '+ ' + t('home.new'))), archivadas ? '#/archivadas' : '#/');
 }
 
 // ---------- Login (solo modo nube) ----------
@@ -139,7 +198,7 @@ function registrarNavegacion(nuevo) {
 async function ruta() {
   const hash = location.hash || '#/';
   const volver = registrarNavegacion(hash);
-  resetGuardados();
+  resetGuardados(); alCambiarDatos(null);
   const [, a, b, c] = hash.split('/');
   try {
     if (a === 'cot' && b) await pantallaCotizacion({ shell, id: b, paso: c });
@@ -147,6 +206,7 @@ async function ruta() {
     else if (a === 'planos') await pantallaPlanos({ shell, id: b });
     else if (a === 'precios') await pantallaPrecios({ shell });
     else if (a === 'ajustes') await pantallaAjustes({ shell });
+    else if (a === 'archivadas') await inicio({ archivadas: true });
     else await inicio();
   } catch (e) {
     console.error(e);
@@ -176,6 +236,11 @@ async function arrancar() {
   setLang(S.ajustes.idiomaUi || 'es'); document.documentElement.lang = S.ajustes.idiomaUi || 'es';
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   window.addEventListener('hashchange', ruta);
+  // Guardado pendiente: si la página se oculta o se cierra, se guarda lo que esté esperando el retraso de 350 ms.
+  const volcar = () => { try { document.activeElement?.blur?.(); } catch { /* nada */ } flushGuardados(); };
+  window.addEventListener('pagehide', volcar);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') volcar(); });
+  store.purgarPapelera().catch((e) => console.error('purga', e)); // borra de verdad lo que lleva 30 días en la papelera
   ruta();
 }
 window.__app = { S, store, crearCotizacion, ruta };

@@ -35,3 +35,10 @@ test('contraste: el texto blanco nunca va sobre teal', () => {
   assert.ok(contraste('#ffffff', V.teal) < 4.5); // por eso se usa tinta oscura
   assert.ok(!/\.primary[^}]*color:\s*#fff/i.test(css));
 });
+
+test('contraste 1A: botón Borrar (blanco sobre rojo), Archivar (blanco sobre tinta) y aviso de atención', () => {
+  assert.ok(contraste('#ffffff', V.err) >= 4.5, 'Borrar');
+  assert.ok(contraste('#ffffff', V.ink) >= 7, 'Archivar');
+  assert.ok(contraste(V.ink, V['warn-bg']) >= 7, 'aviso de atención');
+  assert.ok(contraste(V.muted, V.bg) >= 4.5, 'texto de ayuda de las tarjetas');
+});

@@ -4,6 +4,7 @@
 // Los PDF de planos se guardan SIEMPRE solo en IndexedDB local (v1).
 import { firebaseConfig, firebaseConfigurado, FIREBASE_VERSION } from './firebase-config.js';
 import { catalogoInicial, ajustesIniciales } from './defaults.js';
+import { purgables, idsPlanosPdf } from './papelera.js';
 
 const DB_NAME = 'cotizador-allinone', DB_VER = 2; // v2: agrega el almacén 'licitaciones' (onupgradeneeded crea lo que falte, sin tocar lo existente)
 let _db;
@@ -132,6 +133,20 @@ export const borrarLicitacion = (id) => backend.borrarLic(id);
 export const guardarPlanoPdf = (id, buf) => idbPut('planos', id, buf);
 export const obtenerPlanoPdf = (id) => idbGet('planos', id);
 export const borrarPlanoPdf = (id) => idbDel('planos', id);
+
+/** Guarda una cotización ('cot') o un proyecto potencial ('bid'). */
+export const guardarItem = (tipo, it) => (tipo === 'cot' ? saveCotizacion(it) : saveLicitacion(it));
+/** Borra de verdad lo que lleva 30 días o más en la papelera (y sus PDF de plano). Se llama al abrir la app. */
+export async function purgarPapelera(ahora = new Date()) {
+  let n = 0;
+  for (const [lista, borrar] of [[await listarCotizaciones(), borrarCotizacion], [await listarLicitaciones(), borrarLicitacion]]) {
+    for (const it of purgables(lista, ahora)) {
+      for (const id of idsPlanosPdf(it)) await borrarPlanoPdf(id).catch(() => {});
+      await borrar(it.id); n++;
+    }
+  }
+  return n;
+}
 
 // Respaldo JSON (planos NO incluidos)
 export async function exportarRespaldo() {

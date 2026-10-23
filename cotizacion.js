@@ -3,7 +3,9 @@ import { h, clear, usd, num, pct1, descargar, add } from './util.js';
 import { t } from './i18n.js';
 import { S } from './state.js';
 import * as store from './store.js';
-import { field, numField, selectField, checkField, toast, sheet, aviso, pctField, guardadoOk, acciones, borrarConDeshacer, controlGanancia } from './ui.js';
+import { field, numField, selectField, checkField, toast, sheet, aviso, pctField, guardadoOk, acciones, borrarConDeshacer, controlGanancia, registrarGuardado } from './ui.js';
+import { borrarSuave, archivarConDeshacer } from './borrado.js';
+import { puedeBorrar, puedeArchivar } from './papelera.js';
 import {
   medirCuarto, calcularCotizacion, contingenciaPorDefecto, esPre1978, puedeGenerarPdf, TEXTO_CONFIRMACION,
   markupPctDesdeMargenBp, montosHitos, anticipoExcede10, snapshotCatalogo, aCentavos, BP,
@@ -17,9 +19,12 @@ export async function pantallaCotizacion({ shell, id, paso }) {
   const q = await store.getCotizacion(id);
   if (!q) return shell(t('ui.error'), aviso('err', t('quote.notFound')), '#/');
   const paso0 = PASOS.includes(paso) || paso === 'cantidades' ? paso : 'client';
-  let timer;
-  const guardarYa = async () => { clearTimeout(timer); try { await store.saveCotizacion(q); guardadoOk(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
-  const guardar = () => { clearTimeout(timer); timer = setTimeout(guardarYa, 350); };
+  let timer, pendiente = false;
+  const guardarYa = async () => { clearTimeout(timer); pendiente = false; try { await store.saveCotizacion(q); guardadoOk(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
+  const guardar = () => { clearTimeout(timer); pendiente = true; timer = setTimeout(guardarYa, 350); };
+  registrarGuardado(() => { if (pendiente) guardarYa(); }); // pagehide / visibilitychange / cambio de pantalla
+  // Borrar = papelera + Deshacer (sin confirm). Se aplica sobre ESTE mismo objeto q para que un guardado pendiente no lo pise.
+  const salirDe = async (fn) => { clearTimeout(timer); pendiente = false; try { if (await fn()) location.hash = '#/'; } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
   const body = h('div');
   const cal = () => { try { return calcularCotizacion(q); } catch (e) { console.error(e); return null; } };
 
@@ -54,7 +59,9 @@ export async function pantallaCotizacion({ shell, id, paso }) {
       field({ label: t('client.notes'), area: true, value: c.notas || '', onInput: (v) => { c.notas = v; guardar(); } }),
       selectField(t('quote.status'), ['borrador', 'enviada', 'aceptada', 'rechazada'].map((e) => [e, t('estado.' + e)]), q.estado, (v) => { q.estado = v; guardar(); })),
       h('button', { class: 'primary block', onclick: () => guardarYa().then(() => { location.hash = `#/cot/${id}/rooms`; }) }, t('ui.next')),
-      h('button', { class: 'danger block mt', onclick: async () => { if (confirm(t('quote.deleteConfirm'))) { await store.borrarCotizacion(id); location.hash = '#/'; } } }, t('quote.delete')));
+      puedeBorrar('cot', q)
+        ? h('button', { class: 'danger block mt', onclick: () => salirDe(() => borrarSuave('cot', q)) }, t('quote.delete'))
+        : (puedeArchivar(q) ? h('div', { class: 'mt' }, h('p', { class: 'muted' }, t('quote.archiveNote')), h('button', { class: 'block', onclick: () => salirDe(() => archivarConDeshacer('cot', q)) }, t('quote.archive'))) : null));
   }
 
   // ---------- Paso 2: cuartos y partidas ----------

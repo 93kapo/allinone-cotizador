@@ -5,6 +5,7 @@ import { h, clear, add, num, cargarScript, PDFJS_URL, PDFJS_WORKER, usd } from '
 import { t } from './i18n.js';
 import { S } from './state.js';
 import * as store from './store.js';
+import { esVisible } from './papelera.js';
 import { field, selectField, toast, sheet, aviso, guardadoOk, acciones, borrarConDeshacer } from './ui.js';
 import { parseLongitud, calibrarEscala, longitudPolilinea, areaPoligono, dist, formatoPiesPulgadas } from './engine.js';
 
@@ -20,7 +21,7 @@ async function cargarPdfJs() {
 
 export async function pantallaPlanos({ shell, id }) {
   if (!id) {
-    const lista = await store.listarCotizaciones();
+    const lista = (await store.listarCotizaciones()).filter(esVisible); // sin papelera ni archivadas
     return shell(t('nav.plans'), h('div', {}, h('h1', {}, t('nav.plans')), aviso('info', t('plans.dwgNote')), h('p', {}, t('plans.pickQuote')),
       lista.length ? lista.map((q) => h('a', { class: 'card item', href: `#/planos/${q.id}`, style: 'text-decoration:none;color:inherit' }, h('div', { class: 'main' }, h('b', {}, q.cliente?.nombre || q.numero), h('span', { class: 'sub' }, q.numero)), '›'))
         : h('div', { class: 'empty card' }, t('home.empty'))), '#/planos');

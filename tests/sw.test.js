@@ -17,8 +17,8 @@ test('sw: todo import relativo de los módulos de la app está en el SHELL (si n
   }
   assert.deepEqual(faltan, []);
 });
-test('sw: versión 1.4.0, navegación offline usa "./" y se re-empaquetan respuestas redirigidas', () => {
-  assert.match(sw, /const VERSION = 'cotizador-v1\.4\.0'/);
+test('sw: versión 1.5.0, navegación offline usa "./" y se re-empaquetan respuestas redirigidas', () => {
+  assert.match(sw, /const VERSION = 'cotizador-v1\.5\.0'/);
   assert.match(sw, /c\.match\('\.\/'\)/);
   assert.match(sw, /r\.redirected \? new Response\(r\.body, \{ status: r\.status, statusText: r\.statusText, headers: r\.headers \}\)/);
   assert.ok(!sw.includes("c.addAll"), 'addAll no puede re-empaquetar respuestas');
@@ -26,4 +26,8 @@ test('sw: versión 1.4.0, navegación offline usa "./" y se re-empaquetan respue
 test('manifest: start_url y scope son "./"', () => {
   const m = JSON.parse(readFileSync(new URL('manifest.webmanifest', root), 'utf8'));
   assert.equal(m.start_url, './'); assert.equal(m.scope, './');
+});
+
+test('sw 1.5.0: los módulos nuevos (gesto, lista, papelera, cola, borrado) están en el SHELL', () => {
+  for (const f of ['gesto.js', 'lista.js', 'papelera.js', 'cola.js', 'borrado.js']) assert.ok(SHELL.includes(f), f);
 });
