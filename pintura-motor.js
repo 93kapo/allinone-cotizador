@@ -128,10 +128,11 @@ export function tareasDe(pint, areas) {
   const out = [];
   const int = resolverProducto(pint, 'int'), ext = resolverProducto(pint, 'ext');
   const comercial = pint.inmueble === 'comercial';
-  const add = (id, cantidad, manos, prod, porCara = false) => {
+  const add = (id, prodId, cantidad, manos, porCara = false) => {
     cantidad = num0(cantidad);
     if (!(cantidad > 0)) return;
-    let p = ordenar3(prod.bajo, prod.probable, prod.alto);
+    const def = D.PRODUCTIVIDAD[prodId];
+    let p = trioProd(pint, prodId, def);
     const positivos = [p.bajo, p.probable, p.alto].filter((x) => x > 0);
     if (!positivos.length) return; // sin productividad no se inventan horas
     p = ordenar3(p.bajo || positivos[0], p.probable || positivos[0], p.alto || positivos[0]); // un 0 escrito por error no rompe mínimo <= probable <= máximo
@@ -141,25 +142,18 @@ export function tareasDe(pint, areas) {
       const trabajo = cantidad * Math.max(1, manos);
       h = tri(p.alto > 0 ? trabajo / p.alto : 0, p.probable > 0 ? trabajo / p.probable : 0, p.bajo > 0 ? trabajo / p.bajo : 0);
     }
-    out.push({ id, cantidad, manos: porCara ? 1 : manos, prod: p, horas: h });
+    out.push({ id, prodId, cantidad, manos: porCara ? 1 : manos, prod: p, estimado: def.estimado === true, unidad: def.unidad, horas: h });
   };
   if (pint.alcance !== 'exterior') {
     const manos = int.manos + int.manosPrimer;
-    const pared = comercial ? D.PRODUCTIVIDAD.comercial : pint.interior?.textura ? D.PRODUCTIVIDAD.paredTextura : D.PRODUCTIVIDAD.paredLisa;
-    const idPared = comercial ? 'comercial' : pint.interior?.textura ? 'paredTextura' : 'paredLisa';
-    add('paredInt', areas.paredesInt, manos, trioProd(pint, idPared, pared));
-    if (pint.interior?.techos) add('techo', areas.techo, manos, trioProd(pint, 'techo', D.PRODUCTIVIDAD.techo));
-    if (pint.interior?.trim) add('trim', areas.trim, manos, trioProd(pint, 'trim', D.PRODUCTIVIDAD.trim));
-    if (pint.interior?.puertas) add('puerta', areas.puertas * D.CARAS_PUERTA, 1, trioProd(pint, 'puerta', D.PRODUCTIVIDAD.puerta), true);
+    add('paredInt', comercial ? 'comercial' : pint.interior?.textura ? 'paredTextura' : 'paredLisa', areas.paredesInt, manos);
+    if (pint.interior?.techos) add('techo', 'techo', areas.techo, manos);
+    if (pint.interior?.trim) add('trim', 'trim', areas.trim, manos);
+    if (pint.interior?.puertas) add('puerta', 'puerta', areas.puertas * D.CARAS_PUERTA, 1, true);
   }
   if (pint.alcance !== 'interior' && areas.extArea > 0) {
     const manos = ext.manos + ext.manosPrimer;
-    let id, def;
-    if (pint.exterior?.metodo === 'pulverizador') { id = 'pulverizador'; def = D.PRODUCTIVIDAD.pulverizador; }
-    else if (pint.exterior?.textura) { id = 'paredTextura'; def = D.PRODUCTIVIDAD.paredTextura; }
-    else if (comercial) { id = 'comercial'; def = D.PRODUCTIVIDAD.comercial; }
-    else { id = 'paredLisa'; def = D.PRODUCTIVIDAD.paredLisa; }
-    add('paredExt', areas.extArea, manos, trioProd(pint, id, def));
+    add('paredExt', pint.exterior?.metodo === 'pulverizador' ? 'pulverizador' : pint.exterior?.textura ? 'paredTextura' : comercial ? 'comercial' : 'paredLisa', areas.extArea, manos);
   }
   return out;
 }

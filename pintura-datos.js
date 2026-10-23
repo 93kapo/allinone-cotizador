@@ -102,4 +102,4 @@ export const MARGEN_TAMANOS = [
 /** Retención sugerida en la orden de trabajo del subcontratista (editable; revisar con abogado). */
 export const RETENCION_BP = 1000;
 
-export const NOTA_REGLA_SECADO = 'Regla práctica derivada, NO del fabricante: la espera entre manos es el tiempo de repintar de la ficha; si cabe en la jornada, se repinta el mismo día; si no, se suma un día por mano adicional (24 h = 1 día; 24-48 h en frío = 1-2 días); en exteriores se suma 1 día de margen.';
+export const NOTA_REGLA_SECADO = 'Regla práctica derivada, NO del fabricante: la espera entre manos es el tiempo de repintar de la ficha; si cabe en la jornada, se repinta el mismo día; si no, se suma un día por mano adicional (24 h = 1 día; 24-48 h en frío = 1-2 días); en exteriores se suma 1 día extra por el clima.';

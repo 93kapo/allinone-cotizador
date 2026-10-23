@@ -1,10 +1,11 @@
 // pdf.js - Generación de PDF con jsPDF (fuentes estándar: cubren Latin-1 -> á é í ó ú ñ ¿ ¡).
 // OJO: evitar caracteres fuera de WinAnsi (p.ej. flechas, ≥, comillas tipográficas).
 import { tr } from './i18n.js';
-import { usd, cargarScript, JSPDF_URL, urlADataUrl, num } from './util.js';
+import { usd, cargarScript, JSPDF_URL, urlADataUrl, num, pct1 } from './util.js';
 import { montosHitos, anticipoExcede10, esPre1978, markupPctReal } from './engine.js';
 import { formatoFechaLimite, lineaAMotor } from './bids-calc.js';
 import { oficiosCotizados } from './bids-drafts.js';
+import * as PM from './pintura-motor.js';
 
 const TEAL = [56, 192, 217], SLATE = [78, 124, 133], INK = [18, 51, 58], GRAY = [90, 100, 105];
 
@@ -94,8 +95,12 @@ export async function generarPdfCliente(q, calc, aj, cat, lang = 'en') {
 
   c.h2(tr(lang, 'pdf.scope'));
   const wP = 34, wD = c.w - wP;
-  c.row([{ t: tr(lang, 'pdf.item'), w: wD }, { t: tr(lang, 'pdf.price'), w: wP, align: 'right' }], { bold: true, size: 9, color: GRAY });
-  (q.lineas || []).forEach((l, i) => {
+  const esPintura = q.tipo === 'pintura' && !!q.pintura;
+  if (esPintura) {
+    // Pintura: el cliente ve el trabajo incluido (sin horas, tarifas ni costos) y un solo total.
+    for (const x of alcancePintura(q, lang)) c.text('- ' + pdfTxt(x), { gap: 0.8 });
+  } else c.row([{ t: tr(lang, 'pdf.item'), w: wD }, { t: tr(lang, 'pdf.price'), w: wP, align: 'right' }], { bold: true, size: 9, color: GRAY });
+  (esPintura ? [] : (q.lineas || [])).forEach((l, i) => {
     const r = calc.lineas[i];
     const room = l.cuartoId ? etiquetaCuarto(q, l.cuartoId) : '';
     const cant = l.personalizada ? '' : ` (${num(l.cantidad, 1)} ${l.unidad || ''})`;
@@ -121,7 +126,7 @@ export async function generarPdfCliente(q, calc, aj, cat, lang = 'en') {
   c.text((q.changeOrders && q.changeOrders[lang]) || aj.changeOrders[lang]);
   c.h2(tr(lang, 'pdf.exclusions'));
   c.text((q.exclusiones && q.exclusiones[lang]) || aj.exclusiones[lang]);
-  if (esPre1978(q.cliente?.anio)) { c.h2(tr(lang, 'pdf.epa')); c.text(aj.avisoEpa[lang]); }
+  if (esPre1978(q.cliente?.anio) || ['si', 'nose'].includes(q.pintura?.antes1978)) { c.h2(tr(lang, 'pdf.epa')); c.text(aj.avisoEpa[lang]); }
 
   c.h2(tr(lang, 'pdf.legal'));
   if (calc.totales.precio > 250000) {
@@ -179,7 +184,97 @@ export async function generarPdfInterno(q, calc, aj, cat) {
   c.text(tr(lang, 'pdf.netNote'), { size: 8, color: GRAY });
   if (t.margenBp < aj.margenPisoBp) c.text(tr(lang, 'pdf.belowFloor', (aj.margenPisoBp / 100).toFixed(0)), { size: 10, bold: true, color: [180, 30, 30] });
   c.text(tr(lang, 'pdf.snapshot', q.snapshot?.fecha?.slice(0, 10) || ''), { size: 8, color: GRAY });
+  if (q.tipo === 'pintura' && q.pintura) seccionPinturaInterna(c, q, calc);
   pie(doc, tr(lang, 'pdf.internalFooter'));
+  return doc;
+}
+
+// ---------------- Pintura ----------------
+const ctxPintura = (q) => ({ cuartos: q.cuartos || [], ajustes: q.snapshot?.ajustes || {}, itemsPlano: q.cantidades?.items || [] });
+const n1 = (x) => num(x, 1);
+/** Trabajo incluido para el CLIENTE (y el subcontratista): superficies, producto y manos. Nada de costos, horas ni tarifas. */
+export function alcancePintura(q, lang) {
+  const P = q.pintura, R = PM.calcular(P, ctxPintura(q)), out = [];
+  if (P.alcance !== 'exterior') {
+    const sup = [tr(lang, 'pint.pdf.sWalls'), P.interior?.techos ? tr(lang, 'pint.pdf.sCeilings') : '', P.interior?.trim ? tr(lang, 'pint.pdf.sTrim') : '', P.interior?.puertas ? tr(lang, 'pint.pdf.sDoors') : ''].filter(Boolean);
+    out.push(tr(lang, 'pint.pdf.int', sup.join(', '), num(R.areas.paredesInt + (P.interior?.techos ? R.areas.techo : 0), 0)));
+    if (R.productos.int.nombre) out.push(tr(lang, 'pint.pdf.product', R.productos.int.nombre, R.productos.int.manos));
+  }
+  if (P.alcance !== 'interior' && R.areas.extArea > 0) {
+    out.push(tr(lang, 'pint.pdf.ext', num(R.areas.extArea, 0)));
+    if (R.productos.ext.nombre) out.push(tr(lang, 'pint.pdf.product', R.productos.ext.nombre, R.productos.ext.manos + (R.productos.ext.manosPrimer ? ' + primer' : '')));
+  }
+  out.push(tr(lang, 'pint.pdf.prep'), tr(lang, 'pint.pdf.materialsIncluded'));
+  return out;
+}
+/** Sección del resumen INTERNO para pintura (siempre en español). Todo lo estimado va marcado. */
+function seccionPinturaInterna(c, q, calc) {
+  const lang = 'es', P = q.pintura, R = PM.calcular(P, ctxPintura(q));
+  const E = P.escenario === 'B' ? R.B : R.A, H = R.horas;
+  const T = (x, o) => c.text(pdfTxt(x), { gap: 0.8, ...o });
+  c.h2(tr(lang, 'pint.pdf.internalTitle'));
+  T(tr(lang, 'pint.pdf.scenario', tr(lang, P.escenario === 'B' ? 'pint.b.short' : 'pint.a.short')), { bold: true });
+  T(tr(lang, 'pint.range', n1(H.sinContingencia.minimo), n1(H.sinContingencia.maximo), n1(H.sinContingencia.probable)) + ' (' + tr(lang, 'pint.pdf.noCont') + ')');
+  T(tr(lang, 'pint.range', n1(H.conContingencia.minimo), n1(H.conContingencia.maximo), n1(H.conContingencia.probable)) + ' (' + tr(lang, 'pint.pdf.withCont', H.contPct) + ')');
+  const pl = P.escenario === 'B' ? R.planB : R.planA;
+  if (!pl.incompleto) T(tr(lang, 'pint.c.equation', n1(pl.probable.horasHombre), pl.efectivas, pl.probable.diasTrabajo, pl.horasDia) + ' + ' + tr(lang, 'pint.pdf.waitDays', pl.probable.diasEspera));
+  else T(tr(lang, 'pint.c.choosePeople'));
+  if (P.escenario === 'A') {
+    T(tr(lang, 'pint.a.pay', n1(R.A.horasAcordadas), usd(R.A.tarifaCents), usd(R.A.pago)));
+    if (R.A.tarifaEfectivaCents != null) T(tr(lang, 'pint.a.effective', n1(H.sinContingencia.probable), usd(R.A.tarifaEfectivaCents)));
+  } else {
+    T(tr(lang, 'pint.b.cost', n1(R.B.horasTotales), usd(R.B.salarioH), pct1(R.B.cargas.bpEfectivo), usd(R.B.manoObra)));
+  }
+  if (R.equilibrio.tipo === 'horas') T(tr(lang, 'pint.a.breakeven', n1(R.equilibrio.horas)));
+  for (const l of R.mat.lineas) T(`${l.nombre || '-'}: ${l.galones} gal x ${usd(l.precioCents)} = ${usd(l.costo)}`, { size: 9, color: GRAY });
+  T(tr(lang, 'pint.pdf.reserve', usd(R.mat.reservaCents)), { size: 9, color: GRAY });
+  T(tr(lang, 'pint.pdf.suggested', pct1(E.sug.minBp), pct1(E.sug.maxBp), tr(lang, `pint.g.${E.rentabilidad}`)));
+  if (E.faltan.length) T(tr(lang, 'pint.pdf.missing', E.faltan.map((k) => tr(lang, `pint.missing.${k}`)).join(', ')), { bold: true, color: [180, 30, 30] });
+  T(tr(lang, 'pint.pdf.estimatedLegend'), { size: 8, color: GRAY });
+}
+
+/** ORDEN DE TRABAJO para el subcontratista (BORRADOR que la persona revisa; la app no la envía). Solo escenario A. Sin precio al cliente ni ganancia. */
+export async function generarPdfOrdenTrabajo(q, R, aj, lang = 'en') {
+  const doc = await nuevoDoc();
+  const logo = await urlADataUrl('icons/logo-pdf.png').catch(() => null);
+  const c = new Cursor(doc);
+  const P = q.pintura, A = R.A, T = (x, o) => c.text(pdfTxt(x), o);
+  const fecha = new Date();
+  encabezado(doc, c, logo, aj, pdfTxt(tr(lang, 'pint.ord.title')), `${tr(lang, 'pdf.number')} ${q.numero || ''}   |   ${tr(lang, 'pdf.date')}: ${fmtFecha(fecha, lang)}`);
+  T(tr(lang, 'pint.ord.draft'), { bold: true, color: [180, 30, 30] });
+  const sub = q.ordenTrabajo?.sub || tr(lang, 'pint.ord.fill');
+  T(tr(lang, 'pint.ord.parties', aj.empresa?.nombre || '', sub), { gap: 2 });
+  T(tr(lang, 'pint.ord.site', [q.cliente?.nombre, q.cliente?.direccion].filter(Boolean).join(' - ') || tr(lang, 'pint.ord.fill')), { gap: 2 });
+  c.h2(tr(lang, 'pint.ord.scope'));
+  for (const x of alcancePintura(q, lang)) T('- ' + x, { gap: 0.8 });
+  T(tr(lang, 'pint.ord.materials'), { gap: 1 });
+  const pl = R.planA;
+  T(pl.incompleto ? tr(lang, 'pint.ord.timeTbd') : tr(lang, 'pint.ord.time', pl.probable.dias, pl.personas));
+  c.h2(tr(lang, 'pint.ord.payment'));
+  const wV = 40, wD = c.w - wV, fila = (k, v, o) => c.row([{ t: pdfTxt(k), w: wD }, { t: pdfTxt(v), w: wV, align: 'right' }], o);
+  fila(tr(lang, 'pint.ord.hours'), `${n1(A.horasAcordadas)} h`);
+  fila(tr(lang, 'pint.ord.rate'), `${usd(A.tarifaCents)} / h`);
+  fila(tr(lang, 'pint.ord.fixed'), usd(A.pago), { bold: true, size: 12 });
+  const ret = Math.round(A.pago * (P.retencionBp || 0) / 10000);
+  fila(tr(lang, 'pint.ord.retention', (P.retencionBp || 0) / 100), usd(ret));
+  fila(tr(lang, 'pint.ord.afterPunch'), usd(A.pago - ret));
+  c.y += 1;
+  T(tr(lang, 'pint.ord.fixedNote'), { size: 9, color: GRAY });
+  c.h2(tr(lang, 'pint.ord.terms'));
+  for (const k of ['changeOrders', 'punch', 'w9', 'insurance', 'tools', 'epa', 'cleanup']) {
+    if (k === 'epa' && !(['si', 'nose'].includes(P.antes1978) || esPre1978(q.cliente?.anio))) continue;
+    T('- ' + tr(lang, `pint.ord.t.${k}`), { gap: 0.8 });
+  }
+  if (q.ordenTrabajo?.notas) { c.h2(tr(lang, 'pint.ord.notes')); T(q.ordenTrabajo.notas); }
+  T(tr(lang, 'pint.ord.lawyer'), { size: 9, bold: true, color: GRAY, gap: 2 });
+  c.need(40); c.y += 8;
+  const half = c.w / 2 - 6;
+  doc.setDrawColor(...INK); doc.setLineWidth(0.3);
+  doc.line(c.m, c.y, c.m + half, c.y); doc.line(c.m + half + 12, c.y, c.m + 2 * half + 12, c.y);
+  c.y += 4;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
+  doc.text(pdfTxt(tr(lang, 'pint.ord.signSub')), c.m, c.y); doc.text(pdfTxt(tr(lang, 'pint.ord.signCompany')), c.m + half + 12, c.y);
+  pie(doc, pdfTxt(`${aj.empresa?.nombre || ''}  |  ${q.numero || ''}  |  ${tr(lang, 'pint.ord.draftShort')}`));
   return doc;
 }
 

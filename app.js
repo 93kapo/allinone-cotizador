@@ -10,6 +10,7 @@ import { lista } from './lista.js';
 import { borrarSuave, archivarConDeshacer, sacarDelArchivo } from './borrado.js';
 import { puedeBorrar, enPapelera, filtrarCotizaciones, necesitaAtencion } from './papelera.js';
 import { pantallaCotizacion } from './cotizacion.js';
+import { pantallaPintura, crearCotizacionPintura } from './pintura.js';
 import { pantallaPlanos } from './planos.js';
 import { pantallaPrecios } from './precios.js';
 import { pantallaAjustes } from './ajustes.js';
@@ -30,13 +31,19 @@ const icon = (k) => { const s = document.createElementNS('http://www.w3.org/2000
 export function navegar(hash) { if (location.hash === hash) ruta(); else location.hash = hash; }
 
 const TITULO_APP = 'Cotizador';
+/** Una cotización de pintura se abre en su flujo guiado; las demás en el editor de siempre. */
+const hrefCot = (q) => (q.tipo === 'pintura' ? `#/pintura/${q.id}/1` : `#/cot/${q.id}`);
 const SECCIONES_MAS = ['#/planos', '#/precios', '#/ajustes', '#/archivadas'];
 
 /** Hoja "Más": las pantallas que no caben en la barra de 3 pestañas. */
 function abrirMas() {
   const item = (href, ic, txt) => h('a', { href, class: 'btn masitem', onclick: () => sh.close() }, icon(ic), h('span', {}, txt));
+  const avanzada = h('button', { type: 'button', class: 'btn masitem', id: 'mas-avanzada', onclick: async () => {
+    sh.close();
+    try { const q = await crearCotizacion(); navegar(`#/cot/${q.id}`); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); }
+  } }, icon('bid'), h('span', {}, t('nav.advanced')));
   const sh = sheet(t('nav.more'), h('div', { class: 'stack' },
-    item('#/planos', 'plan', t('nav.plans')), item('#/precios', 'tag', t('nav.prices')),
+    item('#/planos', 'plan', t('nav.plans')), item('#/precios', 'tag', t('nav.prices')), avanzada,
     item('#/archivadas', 'box', t('nav.archived')), item('#/ajustes', 'gear', t('nav.settings'))));
   return sh;
 }
@@ -44,6 +51,7 @@ function abrirMas() {
 function shell(titulo, contenido, seccion) {
   cerrarDeshacer();
   cerrarHojas();
+  document.documentElement.style.setProperty('--precio-h', '0px'); // la barra de precio del flujo de pintura la vuelve a publicar
   clear(root);
   const enMas = SECCIONES_MAS.includes(seccion);
   root.append(
@@ -96,7 +104,7 @@ async function inicio({ archivadas = false } = {}) {
     atencionBox.append(h('h2', { class: 'seccion' }, t('home.attention')));
     if (!a.bids.length && !a.cots.length) { atencionBox.append(h('p', { class: 'muted' }, t('home.attentionNone'))); return; }
     for (const { b } of a.bids) atencionBox.append(h('a', { href: `#/licitaciones/${b.id}`, class: 'aviso-card' }, h('b', {}, b.proyecto || t('bid.noName')), h('span', {}, etiquetaVencimiento(b.fechaLimite).texto)));
-    for (const { q, razones } of a.cots) atencionBox.append(h('a', { href: `#/cot/${q.id}`, class: 'aviso-card' }, h('b', {}, q.cliente?.nombre || q.numero || t('home.noName')),
+    for (const { q, razones } of a.cots) atencionBox.append(h('a', { href: hrefCot(q), class: 'aviso-card' }, h('b', {}, q.cliente?.nombre || q.numero || t('home.noName')),
       h('span', {}, razones.length === 2 ? t('home.needBoth') : razones[0] === 'sinCliente' ? t('home.needName') : t('home.needMeasures'))));
   };
 
@@ -118,7 +126,7 @@ async function inicio({ archivadas = false } = {}) {
       : h('div', { class: 'empty card' }, h('p', {}, t('home.noMatch')));
     if (v.length) cont.append(h('p', { class: 'muted' }, modoArch ? t('home.archivedHint') : t('home.swipeHint')));
     const el = lista({
-      items: v, href: (q) => `#/cot/${q.id}`, etiqueta: (q) => q.cliente?.nombre || q.numero || t('home.noName'), vacio,
+      items: v, href: hrefCot, etiqueta: (q) => q.cliente?.nombre || q.numero || t('home.noName'), vacio,
       contenido: (q) => [
         h('div', { class: 't-fila' }, h('span', { class: 't-cli' }, q.cliente?.nombre || t('home.noName')), h('span', { class: 't-tot' }, usd(totalDe(q)))),
         h('span', { class: 't-res' }, resumen(q)),
@@ -131,7 +139,7 @@ async function inicio({ archivadas = false } = {}) {
   };
   const recargar = async () => { todas = await store.listarCotizaciones(); pintarAtencion(); pintar(); };
   alCambiarDatos(recargar);
-  const nueva = async () => { const q = await crearCotizacion(); navegar(`#/cot/${q.id}`); };
+  const nueva = async () => { try { const q = await crearCotizacionPintura(); navegar(`#/pintura/${q.id}/1`); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
 
   const chips = h('div', { class: 'chips grandes', role: 'group', 'aria-label': t('home.statusGroup') });
   const OPC = [['todas', t('home.all')], ['borrador', t('home.fBorrador')], ['enviada', t('home.fEnviada')], ['aceptada', t('home.fGanada')], ['archivadas', t('home.fArchivadas')]];
@@ -151,12 +159,14 @@ async function inicio({ archivadas = false } = {}) {
   pintarChips(); pintarAtencion(); pintar();
   const busq = h('input', { id: 'buscar', type: 'search', placeholder: t('home.searchPh'), autocomplete: 'off', enterkeyhint: 'search', oninput: (e) => { texto = e.target.value; pintar(); } });
   shell(t('nav.home'), h('div', { class: 'con-fab' },
-    titulo, atencionBox,
+    titulo,
+    archivadas ? null : h('button', { type: 'button', class: 'primary block grande', id: 'btn-nueva-pintura', onclick: nueva }, '+ ' + t('home.newPaint')),
+    atencionBox,
     h('h2', { class: 'seccion' }, t('home.mine')),
     h('div', { class: 'buscar' }, h('label', { for: 'buscar' }, t('home.search')), busq),
     chips,
     h('div', { class: 'mt' }, cont),
-    h('button', { class: 'primary fab', onclick: nueva }, '+ ' + t('home.new'))), archivadas ? '#/archivadas' : '#/');
+    h('button', { class: 'primary fab', onclick: nueva }, '+ ' + t('home.newPaintShort'))), archivadas ? '#/archivadas' : '#/');
 }
 
 // ---------- Login (solo modo nube) ----------
@@ -203,6 +213,7 @@ async function ruta() {
   try {
     if (a === 'cot' && b) await pantallaCotizacion({ shell, id: b, paso: c });
     else if (a === 'licitaciones') await pantallaLicitaciones({ shell, id: b, paso: c });
+    else if (a === 'pintura' && b) await pantallaPintura({ shell, id: b, paso: c });
     else if (a === 'planos') await pantallaPlanos({ shell, id: b });
     else if (a === 'precios') await pantallaPrecios({ shell });
     else if (a === 'ajustes') await pantallaAjustes({ shell });

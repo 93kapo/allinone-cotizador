@@ -1,8 +1,8 @@
 // sw.js - Service worker: shell cacheado + librerías CDN cacheadas (funciona offline).
-const VERSION = 'cotizador-v1.5.0';
+const VERSION = 'cotizador-v1.6.0';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css', 'app.js', 'state.js', 'store.js', 'firebase-config.js', 'defaults.js', 'engine.js',
-  'i18n.js', 'ui.js', 'gesto.js', 'lista.js', 'papelera.js', 'cola.js', 'borrado.js', 'util.js', 'pdf.js', 'cotizacion.js', 'planos.js', 'precios.js', 'ajustes.js',
+  'i18n.js', 'ui.js', 'gesto.js', 'lista.js', 'papelera.js', 'cola.js', 'borrado.js', 'util.js', 'pdf.js', 'cotizacion.js', 'planos.js', 'precios.js', 'ajustes.js', 'pintura.js', 'pintura-motor.js', 'pintura-datos.js',
   'licitaciones.js', 'licitaciones-cantidades.js', 'plan-cantidades.js', 'plan-cantidades-ejemplo.js', 'licitaciones-costeo.js', 'licitaciones-borradores.js', 'bids-parse.js', 'bids-fit.js', 'bids-calc.js', 'bids-drafts.js', 'bids-ejemplo.js',
   'fonts/poppins-400.woff2', 'fonts/poppins-400-ext.woff2', 'fonts/poppins-600.woff2', 'fonts/poppins-700.woff2',
   'icons/isotipo-teal.png', 'icons/logo-color.png', 'icons/logo-pdf.png', 'icons/logo-white.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png',
