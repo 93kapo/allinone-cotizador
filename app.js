@@ -5,7 +5,7 @@ import { S } from './state.js';
 import * as store from './store.js';
 import { calcularCotizacion, contingenciaPorDefecto } from './engine.js';
 import { snapshotCatalogo } from './engine.js';
-import { toast, selectField, field, cerrarDeshacer } from './ui.js';
+import { toast, selectField, field, cerrarDeshacer, sheet, cerrarHojas, resetGuardados } from './ui.js';
 import { pantallaCotizacion } from './cotizacion.js';
 import { pantallaPlanos } from './planos.js';
 import { pantallaPrecios } from './precios.js';
@@ -15,28 +15,49 @@ import { pantallaLicitaciones } from './licitaciones.js';
 const root = document.getElementById('app');
 const ICONS = {
   home: '<path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  box: '<path d="M3 7h18v4H3zM5 11v9h14v-9M10 15h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
   plan: '<path d="M4 4h16v16H4zM4 10h16M10 4v16" fill="none" stroke="currentColor" stroke-width="2"/>',
   tag: '<path d="M3 12V3h9l9 9-9 9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/>',
   bid: '<path d="M6 3h9l4 4v14H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h6" fill="none" stroke="currentColor" stroke-width="2"/>',
+  more: '<circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/>',
   gear: '<circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" stroke="currentColor" stroke-width="2"/>',
 };
 const icon = (k) => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = ICONS[k]; return s; };
 
 export function navegar(hash) { if (location.hash === hash) ruta(); else location.hash = hash; }
 
+const TITULO_APP = 'Cotizador';
+const SECCIONES_MAS = ['#/planos', '#/precios', '#/ajustes'];
+
+/** Hoja "Más": las pantallas que no caben en la barra de 3 pestañas. */
+function abrirMas() {
+  const item = (href, ic, txt) => h('a', { href, class: 'btn masitem', onclick: () => sh.close() }, icon(ic), h('span', {}, txt));
+  const sh = sheet(t('nav.more'), h('div', { class: 'stack' },
+    item('#/planos', 'plan', t('nav.plans')), item('#/precios', 'tag', t('nav.prices')),
+    item('#/ajustes', 'gear', t('nav.settings'))));
+  return sh;
+}
+
 function shell(titulo, contenido, seccion) {
   cerrarDeshacer();
+  cerrarHojas();
   clear(root);
+  const enMas = SECCIONES_MAS.includes(seccion);
   root.append(
     h('header', { class: 'top' }, h('img', { src: 'icons/isotipo-teal.png', alt: '' }), h('div', { class: 'ttl' }, titulo), h('span', { id: 'guardado', class: 'savedtag', role: 'status' }),
       S.modo === 'nube' ? h('button', { onclick: async () => { await store.authApi.salir(); location.reload(); } }, t('ui.logout')) : null),
-    h('main', { id: 'main' },
+    h('main', { id: 'main', tabindex: '-1' },
       S.modo === 'local' ? h('div', { class: 'banner local', role: 'status' }, h('b', {}, t('ui.localBanner')), h('span', {}, t('ui.localBannerHint'))) : null,
       contenido),
     h('nav', { class: 'bar', 'aria-label': t('ui.nav') },
-      ...[['#/', 'home', t('nav.home')], ['#/licitaciones', 'bid', t('nav.bidsShort')], ['#/planos', 'plan', t('nav.plans')], ['#/precios', 'tag', t('nav.prices')], ['#/ajustes', 'gear', t('nav.settings')]]
-        .map(([href, ic, txt]) => h('a', { href, 'aria-current': seccion === href ? 'page' : null }, icon(ic), txt))));
+      ...[['#/', 'home', t('nav.home')], ['#/licitaciones', 'bid', t('nav.bidsShort')]]
+        .map(([href, ic, txt]) => h('a', { href, 'aria-current': seccion === href ? 'page' : null }, icon(ic), txt)),
+      h('button', { type: 'button', class: 'navbtn', 'aria-haspopup': 'dialog', 'aria-current': enMas ? 'page' : null, onclick: abrirMas }, icon('more'), t('nav.more'))));
+  // Accesibilidad al navegar: título de la pestaña, scroll arriba y foco al encabezado (lector de pantalla).
+  document.title = `${titulo} · ${TITULO_APP}`;
   window.scrollTo(0, 0);
+  const foco = root.querySelector('main h1') || root.querySelector('main');
+  if (foco) { foco.setAttribute('tabindex', '-1'); foco.focus({ preventScroll: true }); }
 }
 
 export async function crearCotizacion() {
@@ -104,20 +125,34 @@ function login(msg) {
       } }))));
 }
 
+// --- Historial propio: guarda el scroll de cada pantalla y lo restaura al volver atrás ---
+const scrolls = new Map(); const pila = []; let actual = null;
+function registrarNavegacion(nuevo) {
+  if (actual != null) scrolls.set(actual, window.scrollY);
+  let volver = false;
+  if (pila.length >= 2 && pila[pila.length - 2] === nuevo) { pila.pop(); volver = true; }
+  else if (pila[pila.length - 1] !== nuevo) pila.push(nuevo);
+  const mismo = actual === nuevo; actual = nuevo;
+  return volver && !mismo;
+}
+
 async function ruta() {
   const hash = location.hash || '#/';
+  const volver = registrarNavegacion(hash);
+  resetGuardados();
   const [, a, b, c] = hash.split('/');
   try {
-    if (a === 'cot' && b) return await pantallaCotizacion({ shell, id: b, paso: c });
-    if (a === 'licitaciones') return await pantallaLicitaciones({ shell, id: b, paso: c });
-    if (a === 'planos') return await pantallaPlanos({ shell, id: b });
-    if (a === 'precios') return await pantallaPrecios({ shell });
-    if (a === 'ajustes') return await pantallaAjustes({ shell });
-    return await inicio();
+    if (a === 'cot' && b) await pantallaCotizacion({ shell, id: b, paso: c });
+    else if (a === 'licitaciones') await pantallaLicitaciones({ shell, id: b, paso: c });
+    else if (a === 'planos') await pantallaPlanos({ shell, id: b });
+    else if (a === 'precios') await pantallaPrecios({ shell });
+    else if (a === 'ajustes') await pantallaAjustes({ shell });
+    else await inicio();
   } catch (e) {
     console.error(e);
     shell(t('ui.error'), h('div', { class: 'banner err' }, t('ui.error') + ': ' + e.message), '#/');
   }
+  if (volver && scrolls.has(hash)) window.scrollTo(0, scrolls.get(hash)); // al final: hay pantallas que terminan de pintarse después de shell()
 }
 
 async function arrancar() {
@@ -139,6 +174,7 @@ async function arrancar() {
     S.catalogo = await store.getCatalogo();
   } catch (e) { console.error(e); root.replaceChildren(h('div', { class: 'banner err' }, t('ui.error') + ': ' + e.message)); return; }
   setLang(S.ajustes.idiomaUi || 'es'); document.documentElement.lang = S.ajustes.idiomaUi || 'es';
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   window.addEventListener('hashchange', ruta);
   ruta();
 }

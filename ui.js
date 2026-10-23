@@ -45,17 +45,31 @@ export function guardadoOk() {
   _guardTimer = setTimeout(() => el.classList.remove('on'), 2500);
 }
 
-/** Barra "Deshacer" visible 10 segundos tras borrar algo (sin diálogos confirm). onUndo restaura y guarda. */
+/** Contenedor fijo (encima de la barra inferior) que apila las barras Deshacer y publica su alto en --undo-h
+ *  para que el botón "+ Nueva cotización" suba y nunca quede encima de ellas. */
+export function contenedorUndo() {
+  let w = document.getElementById('undo-wrap');
+  if (!w) { w = h('div', { id: 'undo-wrap', class: 'undo-wrap' }); document.body.append(w); }
+  return w;
+}
+export function medirUndo() {
+  const w = document.getElementById('undo-wrap');
+  const px = w && w.childElementCount ? Math.ceil(w.getBoundingClientRect().height) + 8 : 0;
+  document.documentElement.style.setProperty('--undo-h', px + 'px');
+}
+
+/** Barra "Deshacer" visible 10 segundos tras borrar algo dentro de una pantalla (sin diálogos confirm).
+ *  Se cierra al cambiar de pantalla: el objeto en memoria ya no es el vigente (a propósito; ver cerrarDeshacer). */
 let _undoEl, _undoTimer;
 export function deshacer(msg, onUndo, ms = 10000) {
   _undoEl?.remove(); clearTimeout(_undoTimer);
   const el = h('div', { class: 'undo', role: 'status', id: 'undo-bar' }, h('span', {}, msg),
-    h('button', { id: 'undo-btn', onclick: () => { clearTimeout(_undoTimer); el.remove(); _undoEl = null; onUndo(); } }, t('ui.undo')));
-  _undoEl = el; document.body.append(el);
-  _undoTimer = setTimeout(() => { el.remove(); if (_undoEl === el) _undoEl = null; }, ms);
+    h('button', { id: 'undo-btn', onclick: () => { clearTimeout(_undoTimer); el.remove(); _undoEl = null; medirUndo(); onUndo(); } }, t('ui.undo')));
+  _undoEl = el; contenedorUndo().append(el); medirUndo();
+  _undoTimer = setTimeout(() => { el.remove(); if (_undoEl === el) _undoEl = null; medirUndo(); }, ms);
 }
-/** Cierra la barra Deshacer (al cambiar de pantalla/paso el objeto en memoria ya no es el vigente). */
-export function cerrarDeshacer() { clearTimeout(_undoTimer); _undoEl?.remove(); _undoEl = null; }
+/** Cierra la barra Deshacer de pantalla. NO toca la cola de borrados de listas (esa sobrevive a la navegación). */
+export function cerrarDeshacer() { clearTimeout(_undoTimer); _undoEl?.remove(); _undoEl = null; medirUndo(); }
 /** Quita el elemento de una lista y ofrece Deshacer (lo vuelve a poner en su posición original). */
 export function borrarConDeshacer(lista, item, { msg, despues, guardar }) {
   const i = lista.indexOf(item);
@@ -95,12 +109,48 @@ export function toast(msg, tipo = 'ok') {
   const me = toastEl;
   setTimeout(() => me.remove(), tipo === 'ok' ? 2800 : 6000);
 }
+const FOCUSABLES = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+const visibles = (raiz) => [...raiz.querySelectorAll(FOCUSABLES)].filter((e) => !e.hidden && e.getClientRects().length);
+const _hojas = new Set();
+const actualizarInert = () => { const app = document.getElementById('app'); if (app) app.inert = _hojas.size > 0; };
+/** Cierra todas las hojas abiertas (al cambiar de pantalla); no devuelve el foco porque la pantalla nueva lo toma. */
+export function cerrarHojas() { for (const c of [..._hojas]) c(false); }
+/** Hoja inferior accesible: Esc cierra, el foco queda atrapado dentro, el resto de la app se desactiva (inert)
+ *  y al cerrar el foco vuelve a quien la abrió. */
 export function sheet(titulo, contenido, onClose) {
   const t0 = Date.now(); // ignora el "click fantasma" que sigue al toque que abrió la hoja
-  const close = () => { if (s.isConnected) { s.remove(); onClose?.(); } };
-  const s = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': titulo, onclick: (e) => { if (e.target === s && Date.now() - t0 > 600) close(); } },
-    h('div', { class: 'in' }, h('div', { class: 'item' }, h('h2', {}, titulo), h('button', { class: 'ghost', 'aria-label': t('ui.close'), onclick: close }, '✕')), contenido));
+  const opener = document.activeElement;
+  const tid = uid();
+  const close = (devolverFoco = true) => {
+    if (!s.isConnected) return;
+    s.remove(); _hojas.delete(close); actualizarInert();
+    onClose?.();
+    if (devolverFoco && opener && opener.isConnected && opener !== document.body) opener.focus?.();
+  };
+  const cerrarBtn = h('button', { class: 'ghost', 'aria-label': t('ui.close'), onclick: () => close() }, '✕');
+  const s = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': tid,
+    onclick: (e) => { if (e.target === s && Date.now() - t0 > 600) close(); },
+    onkeydown: (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); return; }
+      if (e.key !== 'Tab') return;
+      const f = visibles(s);
+      if (!f.length) { e.preventDefault(); return; }
+      const a = f[0], z = f[f.length - 1];
+      if (e.shiftKey && (document.activeElement === a || !s.contains(document.activeElement))) { e.preventDefault(); z.focus(); }
+      else if (!e.shiftKey && (document.activeElement === z || !s.contains(document.activeElement))) { e.preventDefault(); a.focus(); }
+    } },
+    h('div', { class: 'in' }, h('div', { class: 'item' }, h('h2', { id: tid }, titulo), cerrarBtn), contenido));
   document.body.append(s);
+  _hojas.add(close); actualizarInert();
+  const ini = visibles(s).find((e) => e !== cerrarBtn) || cerrarBtn;
+  ini.focus({ preventScroll: true });
   return { close, el: s };
 }
 export const aviso = (cls, ...kids) => h('div', { class: 'banner ' + cls }, ...kids);
+
+/** Registro de "guardados pendientes": cada editor registra una función que guarda SOLO si hay cambios sin guardar.
+ *  Se ejecutan al cambiar de pantalla y cuando la página se oculta o se cierra (pagehide / visibilitychange). */
+const _flush = new Set();
+export const registrarGuardado = (fn) => { _flush.add(fn); };
+export function flushGuardados() { for (const f of [..._flush]) { try { f(); } catch (e) { console.error(e); } } }
+export function resetGuardados() { flushGuardados(); _flush.clear(); }
