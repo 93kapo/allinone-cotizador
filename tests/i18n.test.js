@@ -28,7 +28,7 @@ test('1A: claves nuevas existen en es y en, con texto distinto y sin vacíos', (
     'ui.quoteDeleted', 'ui.quoteArchived', 'ui.bidDeleted', 'ui.bidArchived', 'ui.undoMore', 'ui.undoLabel', 'ui.unarchived',
     'home.attention', 'home.attentionNone', 'home.mine', 'home.search', 'home.fBorrador', 'home.fEnviada', 'home.fGanada', 'home.fArchivadas', 'home.firstQuote',
     'home.swipeHint', 'home.summary', 'home.summaryEmpty', 'home.needName', 'home.needMeasures', 'home.needBoth', 'home.archivedTitle', 'home.archivedEmpty',
-    'bid.help', 'bid.archivedState', 'bid.archive', 'quote.archive', 'estado.papelera', 'estado.archivada', 'bidstate.papelera', 'bidstate.archivada'];
+    'trash.title', 'trash.hint', 'trash.restore', 'bid.help', 'bid.archivedState', 'bid.archive', 'quote.archive', 'estado.papelera', 'estado.archivada', 'bidstate.papelera', 'bidstate.archivada'];
   for (const k of claves) {
     assert.ok(dict.es[k] && dict.en[k], k);
     assert.notEqual(dict.es[k], dict.en[k], k);

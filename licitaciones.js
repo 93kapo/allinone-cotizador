@@ -7,7 +7,7 @@ import * as store from './store.js';
 import { field, selectField, toast, aviso, guardadoOk, alCambiarDatos, registrarGuardado } from './ui.js';
 import { lista as lista_ } from './lista.js';
 import { borrarSuave, archivarConDeshacer, sacarDelArchivo } from './borrado.js';
-import { puedeBorrar, puedeArchivar, esVisible, estaArchivada } from './papelera.js';
+import { puedeBorrar, puedeArchivar, esVisible, estaArchivada, enPapelera, sacarDePapelera } from './papelera.js';
 import { parsearInvitacion } from './bids-parse.js';
 import { analizarAlcance, notaAjuste, nombreOficio } from './bids-fit.js';
 import { bidNuevo, ESTADOS, vencimiento, formatoFechaLimite, aInputLocal } from './bids-calc.js';
@@ -176,12 +176,17 @@ async function pantallaNueva({ shell }) {
 async function pantallaEditor({ shell, id, paso }) {
   const bid = await store.getLicitacion(id);
   if (!bid) return shell(t('ui.error'), aviso('err', t('bid.notFound404')), '#/licitaciones');
+  if (enPapelera(bid)) {
+    return shell(t('nav.bids'), h('div', { class: 'card stack' }, h('h1', {}, t('trash.title')), h('p', {}, bid.proyecto || ''), h('p', { class: 'muted' }, t('trash.hint')),
+      h('button', { class: 'primary block', onclick: async () => { try { sacarDePapelera(bid); await store.saveLicitacion(bid); await pantallaEditor({ shell, id, paso }); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } } }, t('trash.restore')),
+      h('a', { href: '#/licitaciones', class: 'btn block' }, '← ' + t('nav.bids'))), '#/licitaciones');
+  }
   const p0 = PASOS.includes(paso) ? paso : 'datos';
   let timer, pendiente = false;
   const guardarYa = async () => { clearTimeout(timer); pendiente = false; try { await store.saveLicitacion(bid); guardadoOk(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
   const guardar = () => { clearTimeout(timer); pendiente = true; timer = setTimeout(guardarYa, 350); };
   registrarGuardado(() => { if (pendiente) guardarYa(); }); // pagehide / visibilitychange / cambio de pantalla
-  const salirDe = async (fn) => { clearTimeout(timer); pendiente = false; try { if (await fn()) location.hash = '#/licitaciones'; } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
+  const salirDe = async (fn) => { clearTimeout(timer); pendiente = false; try { if (await fn()) location.replace('#/licitaciones'); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
   const body = h('div');
   const cab = h('div');
   const pintarCab = () => {

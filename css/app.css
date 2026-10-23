@@ -111,6 +111,7 @@ button.chip{min-height:48px;cursor:pointer}
 .barra{height:12px;border-radius:99px;background:var(--line);overflow:hidden}.barra>i{display:block;height:100%;background:var(--ok);transform-origin:left;transition:transform .28s ease-out}
 .toast{animation:subir .25s ease-out}
 /* --- Lista con tarjetas y gesto de deslizar --- */
+.con-fab .muted,.con-fab label{font-size:1rem}
 .lista{outline:none}
 .lista:focus,.lista:focus-visible{box-shadow:none}
 .fila{position:relative;overflow:hidden;border-radius:var(--r);margin:0 0 12px}

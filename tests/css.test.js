@@ -63,7 +63,7 @@ test('css: existe prefers-reduced-motion y foco visible; animaciones solo opacit
 // --- Fase 1A: tarjetas de Inicio (letra >= 18px), controles táctiles >= 48px, gesto sin animación con movimiento reducido ---
 const regla = (sel) => reglas.find((r) => r.sel === sel);
 test('css 1A: texto de las tarjetas, avisos y chips grandes de Inicio >= 18px', () => {
-  for (const sel of ['.t-cli', '.t-tot', '.t-res', '.t-est .badge', '.chips.grandes .chip', '.aviso-card b', '.aviso-card span']) {
+  for (const sel of ['.t-cli', '.t-tot', '.t-res', '.t-est .badge', '.chips.grandes .chip', '.aviso-card b', '.aviso-card span', '.con-fab .muted,.con-fab label']) {
     const r = regla(sel) || reglas.find((x) => x.sel.split(',').map((s) => s.trim()).includes(sel));
     assert.ok(r, 'falta la regla ' + sel);
     assert.ok(aPx(r.decl['font-size']) >= 18, `${sel}: ${r.decl['font-size']}`);

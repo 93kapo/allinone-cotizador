@@ -5,7 +5,7 @@ import { S } from './state.js';
 import * as store from './store.js';
 import { field, numField, selectField, checkField, toast, sheet, aviso, pctField, guardadoOk, acciones, borrarConDeshacer, controlGanancia, registrarGuardado } from './ui.js';
 import { borrarSuave, archivarConDeshacer } from './borrado.js';
-import { puedeBorrar, puedeArchivar } from './papelera.js';
+import { puedeBorrar, puedeArchivar, enPapelera, sacarDePapelera } from './papelera.js';
 import {
   medirCuarto, calcularCotizacion, contingenciaPorDefecto, esPre1978, puedeGenerarPdf, TEXTO_CONFIRMACION,
   markupPctDesdeMargenBp, montosHitos, anticipoExcede10, snapshotCatalogo, aCentavos, BP,
@@ -18,13 +18,18 @@ const PASOS = ['client', 'rooms', 'review', 'pdf'];
 export async function pantallaCotizacion({ shell, id, paso }) {
   const q = await store.getCotizacion(id);
   if (!q) return shell(t('ui.error'), aviso('err', t('quote.notFound')), '#/');
+  if (enPapelera(q)) { // abierta por el historial (Atrás) tras borrarla: no se edita, se ofrece recuperarla
+    return shell(t('nav.home'), h('div', { class: 'card stack' }, h('h1', {}, t('trash.title')), h('p', {}, q.cliente?.nombre || q.numero || ''), h('p', { class: 'muted' }, t('trash.hint')),
+      h('button', { class: 'primary block', onclick: async () => { try { sacarDePapelera(q); await store.saveCotizacion(q); await pantallaCotizacion({ shell, id, paso }); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } } }, t('trash.restore')),
+      h('a', { href: '#/', class: 'btn block' }, t('home.backHome'))), '#/');
+  }
   const paso0 = PASOS.includes(paso) || paso === 'cantidades' ? paso : 'client';
   let timer, pendiente = false;
   const guardarYa = async () => { clearTimeout(timer); pendiente = false; try { await store.saveCotizacion(q); guardadoOk(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
   const guardar = () => { clearTimeout(timer); pendiente = true; timer = setTimeout(guardarYa, 350); };
   registrarGuardado(() => { if (pendiente) guardarYa(); }); // pagehide / visibilitychange / cambio de pantalla
   // Borrar = papelera + Deshacer (sin confirm). Se aplica sobre ESTE mismo objeto q para que un guardado pendiente no lo pise.
-  const salirDe = async (fn) => { clearTimeout(timer); pendiente = false; try { if (await fn()) location.hash = '#/'; } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
+  const salirDe = async (fn) => { clearTimeout(timer); pendiente = false; try { if (await fn()) location.replace('#/'); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } };
   const body = h('div');
   const cal = () => { try { return calcularCotizacion(q); } catch (e) { console.error(e); return null; } };
 

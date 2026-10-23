@@ -416,6 +416,9 @@ const es = {
   'estado.archivada': 'Archivada',
   'bidstate.papelera': 'En la papelera',
   'bidstate.archivada': 'Archivado',
+  'trash.title': 'Esto está en la papelera',
+  'trash.hint': 'Lo borró hace poco. Si fue sin querer, puede recuperarlo.',
+  'trash.restore': 'Recuperar',
 };
 const en = {
   'ui.close': 'Close', 'ui.delete': 'Delete', 'ui.edit': 'Edit', 'ui.error': 'Error', 'ui.loading': 'Loading...', 'ui.logout': 'Sign out',
@@ -833,6 +836,9 @@ const en = {
   'estado.archivada': 'Archived',
   'bidstate.papelera': 'In the trash',
   'bidstate.archivada': 'Archived',
+  'trash.title': 'This is in the trash',
+  'trash.hint': 'You deleted it recently. If it was by mistake, you can recover it.',
+  'trash.restore': 'Recover',
 };
 export const dict = { es, en };
 let lang = 'es';

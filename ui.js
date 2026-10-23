@@ -175,7 +175,7 @@ function pintarCola() {
   if (!el) {
     el = h('div', { class: 'undo', id: 'undo-cola', role: 'status',
       onfocusin: () => colaDeshacer.pausar(), onfocusout: () => colaDeshacer.reanudar(),
-      onmouseenter: () => colaDeshacer.pausar(), onmouseleave: () => colaDeshacer.reanudar() },
+      onpointerenter: (e) => { if (e.pointerType === 'mouse') colaDeshacer.pausar(); }, onpointerleave: (e) => { if (e.pointerType === 'mouse') colaDeshacer.reanudar(); } },
       h('span', { id: 'undo-cola-txt' }),
       h('button', { id: 'undo-cola-btn', onclick: async () => { try { await colaDeshacer.deshacer(); _alDatos?.(); } catch (e) { toast(t('ui.error') + ': ' + e.message, 'err'); } } }, t('ui.undo')));
     contenedorUndo().prepend(el);
