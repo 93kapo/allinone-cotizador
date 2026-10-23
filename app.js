@@ -226,7 +226,26 @@ async function ruta() {
   if (volver && scrolls.has(hash)) window.scrollTo(0, scrolls.get(hash)); // al final: hay pantallas que terminan de pintarse después de shell()
 }
 
+/** Avisa cuando el service worker nuevo toma el control (la página abierta sigue con el código viejo hasta recargar). */
+function vigilarActualizaciones() {
+  if (!('serviceWorker' in navigator)) return;
+  const habiaControlador = !!navigator.serviceWorker.controller; // sin controlador previo es la primera instalación, no una actualización
+  let avisado = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!habiaControlador || avisado) return;
+    avisado = true;
+    const recargar = () => { try { flushGuardados(); } catch (e) { console.error(e); } location.reload(); };
+    document.body.append(h('div', { class: 'upd-wrap', role: 'status' },
+      h('div', { class: 'upd' }, h('span', {}, t('ui.updateAvail')), h('button', { type: 'button', onclick: recargar }, t('ui.updateNow')))));
+  });
+  // Una app instalada casi nunca recarga sola: al volver a primer plano se pregunta si hay versión nueva.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {});
+  });
+}
+
 async function arrancar() {
+  vigilarActualizaciones();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* sin SW: la app sigue funcionando */ });
   let info;
   try { info = await store.iniciar(); } catch (e) { console.error(e); root.replaceChildren(h('div', { class: 'banner err' }, t('ui.error') + ': ' + e.message)); return; }

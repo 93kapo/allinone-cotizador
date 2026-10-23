@@ -175,3 +175,7 @@ button.origen{font-size:1rem;padding:6px 12px;min-height:48px;border-color:#6f8d
 .precio-barra .estado-sem{font-weight:600}
 @media (max-width:260px){.precio-barra{position:static;max-width:none}}
 .sheet .banner,.toast{font-size:1rem}
+.upd-wrap{position:fixed;left:12px;right:12px;top:calc(var(--hdr) + 8px + env(safe-area-inset-top));z-index:60;max-width:736px;margin:0 auto;pointer-events:none}
+.upd{pointer-events:auto;background:var(--ink);color:#fff;border-radius:12px;padding:10px 12px;display:flex;gap:var(--gap);align-items:center;flex-wrap:wrap;box-shadow:0 4px 14px rgba(0,0,0,.35);animation:subir .25s ease-out}
+.upd span{flex:1 1 8rem;min-width:0;font-size:1.125rem;overflow-wrap:anywhere}
+.upd button{background:var(--teal);border-color:var(--teal);color:var(--ink-t)}

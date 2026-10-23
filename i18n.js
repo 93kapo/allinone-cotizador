@@ -1,7 +1,7 @@
 // i18n.js - diccionario ES/EN. La interfaz usa el idioma de Ajustes (es por defecto);
 // el PDF al cliente usa el idioma elegido en la cotización (en por defecto) mediante tr(lang, ...).
 const es = {
-  'ui.close': 'Cerrar', 'ui.delete': 'Borrar', 'ui.edit': 'Editar', 'ui.error': 'Error', 'ui.loading': 'Cargando...', 'ui.logout': 'Salir',
+  'ui.close': 'Cerrar', 'ui.delete': 'Borrar', 'ui.edit': 'Editar', 'ui.error': 'Error', 'ui.updateAvail': 'Hay una versión nueva', 'ui.updateNow': 'Actualizar', 'ui.loading': 'Cargando...', 'ui.logout': 'Salir',
   'ui.nav': 'Navegación principal', 'ui.next': 'Siguiente', 'ui.save': 'Guardar', 'ui.saved': 'Guardado ✓',
   'ui.localBanner': 'Modo local: sin sincronizar.', 'ui.localBannerHint': ' Los datos están solo en este teléfono; haga respaldos en Ajustes.',
   'nav.more': 'Más', 'nav.archived': 'Archivadas', 'nav.home': 'Inicio', 'nav.plans': 'Planos', 'nav.prices': 'Precios', 'nav.settings': 'Ajustes',
@@ -758,7 +758,7 @@ const es = {
   'pint.ord.signCompany': 'Firma de All In One',
 };
 const en = {
-  'ui.close': 'Close', 'ui.delete': 'Delete', 'ui.edit': 'Edit', 'ui.error': 'Error', 'ui.loading': 'Loading...', 'ui.logout': 'Sign out',
+  'ui.close': 'Close', 'ui.delete': 'Delete', 'ui.edit': 'Edit', 'ui.error': 'Error', 'ui.updateAvail': 'A new version is available', 'ui.updateNow': 'Update', 'ui.loading': 'Loading...', 'ui.logout': 'Sign out',
   'ui.nav': 'Main navigation', 'ui.next': 'Next', 'ui.save': 'Save', 'ui.saved': 'Saved ✓',
   'ui.localBanner': 'Local mode: not synced.', 'ui.localBannerHint': ' Data lives only on this phone; make backups in Settings.',
   'nav.more': 'More', 'nav.archived': 'Archived', 'nav.home': 'Home', 'nav.plans': 'Plans', 'nav.prices': 'Prices', 'nav.settings': 'Settings',
